@@ -1,0 +1,11 @@
+User-entered variables:
+    output_directory: /Users/kirkehmsen/Desktop/072719_CollatedMotifs_KE4
+    fastq_directory: /Users/kirkehmsen/Documents/fastq_files
+    fasta_ref: /Users/kirkehmsen/Desktop/FKBP5_GOR+86.848kb_KE4.txt
+    blastn_path: /Users/kirkehmsen/anaconda3/bin/blastn
+    makeblastdb_path: /Users/kirkehmsen/anaconda3/bin/makeblastdb
+    db_prefix: FKBP5_GOR+86.848kb
+    fimo_path: /Users/kirkehmsen/Meme/bin/fimo
+    fimo_motifs_path: /Users/kirkehmsen/Meme/motif_databases/JASPAR/JASPAR_CORE_2016_vertebrates.meme
+    fasta_get_markov_path: /Users/kirkehmsen/Meme/meme-5.0.1/src/fasta-get-markov
+    markov_background_file: /Users/kirkehmsen/Desktop/hg38.fa
