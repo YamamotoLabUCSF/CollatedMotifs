@@ -1,0 +1,7 @@
+# 0-order Markov frequencies from file /Users/kirkehmsen/Desktop/hg38.fa
+# seqs: 455    min: 970    max: 248956422    avg: 7053376.1    sum: 3209286105    alph: DNA
+# order 0
+A 2.950e-01
+C 2.050e-01
+G 2.050e-01
+T 2.950e-01

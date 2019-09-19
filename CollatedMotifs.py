@@ -1,4 +1,5 @@
 #!/usr/local/bin/anaconda3/bin/python3
+# Note: edit shebang line above as appropriate for your system
 # AUTH: Kirk Ehmsen
 # FILE: CollatedMotifs.py
 # DATE: 09-04-2018/8-04-2019
@@ -17,10 +18,10 @@
 # v1.0/Committed 8-04-2019
 # ----------------------------------------------
 # For usage details, please refer to README file at GitHub location and to the following manuscript:
-#   Ehmsen, Knuesel, Stenglein, Asahina, Aridomi, DeRisi, Yamamoto (2019)
+#   Ehmsen, Knuesel, Asahina, Aridomi, Yamamoto (2019)
 # Please cite usage as:
 #   CollatedMotifs.py
-#   Ehmsen, Knuesel, Stenglein, Asahina, Aridomi, DeRisi, Yamamoto (2019)   
+#   Ehmsen, Knuesel, Asahina, Aridomi, Yamamoto (2019)
 
 # Operation notes:
 # ==============================================
@@ -174,7 +175,7 @@ from pathlib import Path
 
 # Internationalization services (for use of thousands separator in numbers where appropriate)
 import locale
-locale.setlocale(locale.LC_ALL, 'en_US')
+locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 # start time
 initialTime = datetime.now()
@@ -426,11 +427,11 @@ print("""
     FIMO & FASTA-GET-MARKOV from the MEME suite of tools
     
     For usage details, please refer to README file at GitHub location and to the following manuscript:
-        Ehmsen, Knuesel, Stenglein, Martinez, Asahina, Aridomi, DeRisi, Yamamoto (2019)
+        Ehmsen, Knuesel, Martinez, Asahina, Aridomi, Yamamoto (2019)
     
     Please cite usage as:
         CollatedMotifs.py
-        Ehmsen, Knuesel, Stenglein, Martinez, Aridomi, DeRisi, Yamamoto (2019)
+        Ehmsen, Knuesel, Martinez, Aridomi, Yamamoto (2019)
     
     ===========================================================================
     Welcome.  You will be prompted for the following user-specific information:
@@ -813,7 +814,8 @@ cmd_fastagetmarkov = str(fasta_get_markov_path)+' -dna '+str(markovbackground_in
 os.system(cmd_fastagetmarkov)
 
 # Log makeblastdb and fastgetmarkov operations time duration
-makeblastdb_fastagetmarkov_operationsDuration = str(datetime.now()- startTime_makeblastdb_fastagetmarkov_operations).split(':')[0]+' hr|'+str(datetime.now() - startTime_makeblastdb_fastagetmarkov_operations).split(':')[1]+' min|'+str(datetime.now() - startTime_makeblastdb_fastagetmarkov_operations).split(':')[2].split('.')[0]+' sec'
+makeblastdb_fastagetmarkov_operationsDuration = str(datetime.now()- startTime_makeblastdb_fastagetmarkov_operations).split(':')[0]+' hr|'+str(datetime.now() - startTime_makeblastdb_fastagetmarkov_operations).split(':')[1]+' min|'+str(datetime.now() - startTime_makeblastdb_fastagetmarkov_operations).split(':')[2].split('.')[0]+' sec|'+str(datetime.now()- startTime_makeblastdb_fastagetmarkov_operations).split(':')[2].split('.')[1]+' microsec'
+
       
 # Prepare fasta file for reads to be queried for matches to TFBS motifs
 print("""
@@ -830,7 +832,7 @@ query_input = Path(str(output_directory)+'/'+processdate+'_fasta.fa')
 
 # Merge R1 and R2 reads, if present, as single sequence
 R1_file_list = [sourcefile for sourcefile in myFastqFilenames if bool(re.split('_',os.path.basename(sourcefile))[3] == 'R1')]
-R2_file_list = [sourcefile for sourcefile in myFastqFilenames if bool(re.split('_',os.path.basename(sourcefile))[3] == 'R2')]      
+R2_file_list = [sourcefile for sourcefile in myFastqFilenames if bool(re.split('_',os.path.basename(sourcefile))[3] == 'R2')]
       
 # R1, R2 cluster mapping
 processed_files_list = []
@@ -896,7 +898,7 @@ for file_pair in R1_R2_map_list:
               file.write('>'+fastaname[0]+'_'+'R1+R2'+'_'+str(i[1])+'_%totalreads:'+str(i[2])+'_percentile:'+str(i[3])+'_%top5reads:'+str(i[4])+'_%readsfilteredfor1%:'+str(i[5])+'_%readsfilteredfor10%:'+str(i[6])+'\n'+i[0]+'\n')
 
 # Log read count time duration      
-readcountDuration = str(datetime.now()- startTime_readcount).split(':')[0]+' hr|'+str(datetime.now() - startTime_readcount).split(':')[1]+' min|'+str(datetime.now() - startTime_readcount).split(':')[2].split('.')[0]+' sec'
+readcountDuration = readcountDuration = str(datetime.now()- startTime_readcount).split(':')[0]+' hr|'+str(datetime.now() - startTime_readcount).split(':')[1]+' min|'+str(datetime.now() - startTime_readcount).split(':')[2].split('.')[0]+' sec|'+str(datetime.now() - startTime_readcount).split(':')[2].split('.')[1]+' microsec'
 
 # Start the clock on blastn alignments duration  
 startTime_alignments = datetime.now()       
@@ -914,7 +916,7 @@ cmd_align = str(blastn_path)+' -strand plus -query '+str(query_input)+' -db '+st
 os.system(cmd_align)
 
 # Log alignment time duration
-alignmentsDuration = str(datetime.now()- startTime_alignments).split(':')[0]+' hr|'+str(datetime.now() - startTime_readcount).split(':')[1]+' min|'+str(datetime.now() - startTime_readcount).split(':')[2].split('.')[0]+' sec'
+alignmentsDuration = alignmentsDuration = str(datetime.now()- startTime_alignments).split(':')[0]+' hr|'+str(datetime.now()- startTime_alignments).split(':')[1]+' min|'+str(datetime.now()- startTime_alignments).split(':')[2].split('.')[0]+' sec|'+str(datetime.now()- startTime_alignments).split(':')[2].split('.')[1]+' microsec'
 
 # Start the clock on allele definitions duration      
 startTime_alleles = datetime.now()
@@ -971,7 +973,7 @@ multiple_alignments_readID_list = []
 for i in multiple_alignments_list:
     multiple_alignments_readID_list.append(i[1].split('>')[1].split('<')[0])
 
-# Record sample names having reads with >1 alignment to sequences in reference database      
+# Record sample names having reads with >1 alignment to sequences in reference database
 multiple_alignments_samplename_list = []
 for i in multiple_alignments_readID_list:
     samplename = i.split('_')[0]
@@ -1020,7 +1022,7 @@ alignmentoutput_dict2 = { k : v for k,v in alignmentoutput_dict.items() if v}
 # Alignmentoutput_dict2 is the key dictionary for alignment information
       
 # Log allele definitions time duration
-allele_definitionsDuration = str(datetime.now() - startTime_alleles).split(':')[0]+' hr|'+str(datetime.now() - startTime_alleles).split(':')[1]+' min|'+str(datetime.now() - startTime_alleles).split(':')[2].split('.')[0]+' sec'
+allele_definitionsDuration = allele_definitionsDuration = str(datetime.now() - startTime_alleles).split(':')[0]+' hr|'+str(datetime.now() - startTime_alleles).split(':')[1]+' min|'+str(datetime.now() - startTime_alleles).split(':')[2].split('.')[0]+' sec|'+str(datetime.now() - startTime_alleles).split(':')[2].split('.')[1]+' microsec'
 
 # Start the clock on FIMO operations duration      
 startTime_fimo = datetime.now()
@@ -1051,7 +1053,7 @@ cmd_TFBS = str(fimo_path)+' --bfile '+str(markovbackground_output)+' --o '+str(a
 os.system(cmd_TFBS)
 
 # Log FIMO operations time duration
-fimoDuration = str(datetime.now() - startTime_fimo).split(':')[0]+' hr|'+str(datetime.now() - startTime_fimo).split(':')[1]+' min|'+str(datetime.now() - startTime_fimo).split(':')[2].split('.')[0]+' sec'  
+fimoDuration = fimoDuration = str(datetime.now() - startTime_fimo).split(':')[0]+' hr|'+str(datetime.now() - startTime_fimo).split(':')[1]+' min|'+str(datetime.now() - startTime_fimo).split(':')[2].split('.')[0]+' sec|'+str(datetime.now() - startTime_fimo).split(':')[2].split('.')[1]+' microsec' 
 
 # Start the clock on TFBS collation operations duration
 startTime_TFBScollation = datetime.now()
@@ -1078,7 +1080,7 @@ ref_set = set(fasta_names)
 
 dict_ref_TFBS = {}
 for ref in ref_set:
-    dict_ref_TFBS[ref] = []  
+    dict_ref_TFBS[ref] = []
 
 # Take 3rd field of all lines as search for presence of key in dictionary, and add line as string in value list of key (allele)
 for line in ref_lines:
@@ -1097,7 +1099,7 @@ for allele in alignmentoutput_dict2:
         dict_allele_TFBS[allele].update({alignmentoutput_dict2.get(allele)[x][1].split(">")[1].split("<")[0]:[]})
 
 with open(str(allele_TFBS_output)+'/fimo.tsv', 'r') as file:
-    allele_lines = file.readlines()  
+    allele_lines = file.readlines()
 
 # Remove FIMO header lines, etc.
 allele_lines = allele_lines[1:]
@@ -1126,15 +1128,15 @@ for allele in alignmentoutput_dict2:
     for x in range(0, len(alignmentoutput_dict2.get(allele))):
         dict_allele_TFBS_synopsis[allele].update({alignmentoutput_dict2.get(allele)[x][1].split(">")[1].split("<")[0]:{'gained':[],'lost':[],'all_sites':[], 'TFs':{}}})
 
-for sample in dict_allele_TFBS_synopsis:
-    for allele in dict_allele_TFBS_synopsis.get(sample):
-        for motif in dict_allele_TFBS.get(sample).get(allele):
-            dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites').append(motif.split('\t')[1]+' ('+motif.split('\t')[0]+'),'+motif.split('\t')[5]+','+motif.split('\t')[9])
+#for sample in dict_allele_TFBS_synopsis:
+#    for allele in dict_allele_TFBS_synopsis.get(sample):
+#        for motif in dict_allele_TFBS.get(sample).get(allele):
+#            dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites').append(motif.split('\t')[1]+' #('+motif.split('\t')[0]+'),'+motif.split('\t')[5]+','+motif.split('\t')[9]+','+motif.split('\t')[7])
             
 for sample in dict_allele_TFBS_synopsis:
     for allele in dict_allele_TFBS_synopsis.get(sample):
         for motif in dict_allele_TFBS.get(sample).get(allele):
-            dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites').append(motif.split('\t')[1]+' ('+motif.split('\t')[0]+'),'+motif.split('\t')[5]+','+motif.split('\t')[9])
+            dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites').append(motif.split('\t')[1]+' ('+motif.split('\t')[0]+'),'+motif.split('\t')[5]+','+motif.split('\t')[9]+','+motif.split('\t')[7])
             if motif.split('\t')[0]+' ('+motif.split('\t')[1]+')' not in dict_allele_TFBS_synopsis.get(sample).get(allele).get('TFs'):
                 count = 1
                 dict_allele_TFBS_synopsis.get(sample).get(allele).get('TFs').update({motif.split('\t')[0]+' ('+motif.split('\t')[1]+')':count})
@@ -1161,7 +1163,7 @@ for ref in dict_ref_TFBS_synopsis:
 # Catalog TFBSs in reference sequences, in format akin to 'all_sites' format in dict_allele_TFBS_synopsis          
 for ref in dict_ref_TFBS_synopsis:
     for motif in dict_ref_TFBS.get(ref):
-        dict_ref_TFBS_synopsis.get(ref).get('all_sites').append(motif.split('\t')[1]+' ('+motif.split('\t')[0]+'),'+motif.split('\t')[5]+','+motif.split('\t')[9])
+        dict_ref_TFBS_synopsis.get(ref).get('all_sites').append(motif.split('\t')[1]+' ('+motif.split('\t')[0]+'),'+motif.split('\t')[5]+','+motif.split('\t')[9]+','+motif.split('\t')[7])
 
 # Run comparisons, populating into dict_allele_TFBS_synopsis
 ref_options = [ref for ref in dict_ref_TFBS]
@@ -1188,7 +1190,6 @@ with open(str(collatedTFBS_output), 'a+') as f:
     print('CollatedMotifs.py: Summary of matches to TFBS motifs detected in sample sequence(s) relative to reference\nDate: ' + (datetime.today().strftime("%m/%d/%Y")) + '\n\n', file = f)
     for i in sorted(dict_allele_TFBS_synopsis):
         print((len(i)*'=')+'\n'+i+'\n'+(len(i)*'='), file = f)
-        print('Collated Motifs\n', file = f)
         for allele in dict_allele_TFBS_synopsis.get(i):
             for x in range(0, len(alignmentoutput_dict2.get(i))):
                 if alignmentoutput_dict2.get(i)[x][1].split('>')[1].split('<')[0] == allele:
@@ -1251,7 +1252,12 @@ with open(str(collatedTFBS_output), 'a+') as f:
                         match = re.search(new_motif_plus.split(',')[2],test[7].split('>')[1].split('<')[0])
                         distance = match.span()[0]
                         sequence = match.group()
-                        print((11+distance)*' '+sequence+' <-- '+new_motif_plus.split(',')[0], file = f)
+                        print((11+distance)*' '+sequence+' |-- '+new_motif_plus.split(',')[0]+' (pval '+new_motif_plus.split(',')[3]+')', file = f)
+                    elif re.search(new_motif_plus.split(',')[2],test[7].split('>')[1].split('<')[0].replace('-','')):
+                        match = re.search(new_motif_plus.split(',')[2],test[7].split('>')[1].split('<')[0].replace('-',''))
+                        distance = match.span()[0]
+                        sequence = match.group()
+                        print((11+distance)*' '+sequence+' |-- '+new_motif_plus.split(',')[0]+' (pval '+new_motif_plus.split(',')[3]+')'+' [note, approx. position]', file = f)
                 for new_motif_minus in new_motif_minus_list:
                     if len(motif_minus_tracker) == 0:
                         print(11*' '+'minus(-) strand:', file = f)
@@ -1263,11 +1269,16 @@ with open(str(collatedTFBS_output), 'a+') as f:
                         match = re.search(new_motif_minus.split(',')[2],seq_revcomp)
                         distance = len(seq_revcomp)-match.span()[0]-len(new_motif_minus.split(',')[2])
                         sequence = ''.join(reversed(match.group()))
-                        print((11*' '+distance*' '+sequence+' <-- '+new_motif_minus.split(',')[0]), file = f)  
+                        print((11*' '+distance*' '+sequence+' |-- '+new_motif_minus.split(',')[0]+' (pval '+new_motif_minus.split(',')[3]+')'), file = f)
+                    elif re.search(new_motif_minus.split(',')[2],seq_revcomp.replace('-','')):
+                        match = re.search(new_motif_minus.split(',')[2],seq_revcomp.replace('-',''))
+                        distance = len(seq_revcomp)-match.span()[0]-len(new_motif_minus.split(',')[2])
+                        sequence = ''.join(reversed(match.group()))
+                        print((11*' '+distance*' '+sequence+' |-- '+new_motif_minus.split(',')[0]+' (pval '+new_motif_minus.split(',')[3]+')'+' [note, approx. position]'), file = f)  
             else:
                 pass
             print('\n'+4*' '+'query  '+test[7].split('>')[1].split('<')[0]+'\n'+11*' '+test[9].split('>')[1].split('<')[0]+'\n'+' reference '+test[8].split('>')[1].split('<')[0]+'\n', file = f)
-            if int(sum_lost_motifs) > 0: 
+            if int(sum_lost_motifs) > 0:
                 print(11*' '+'LOST motifs:', file = f)
                 motif_plus_tracker = []
                 motif_minus_tracker = []
@@ -1288,7 +1299,7 @@ with open(str(collatedTFBS_output), 'a+') as f:
                         match = re.search(lost_motif_plus.split(',')[2],test[8].split('>')[1].split('<')[0])
                         distance = match.span()[0]
                         sequence = match.group()
-                        print((11+distance)*' '+sequence+' <-- '+lost_motif_plus.split(',')[0], file = f)
+                        print((11+distance)*' '+sequence+' |-- '+lost_motif_plus.split(',')[0]+' (pval '+lost_motif_plus.split(',')[3]+')', file = f)
                 for lost_motif_minus in lost_motif_minus_list:
                     if len(motif_minus_tracker) == 0:
                         print(11*' '+'minus(-) strand:', file = f)
@@ -1300,32 +1311,31 @@ with open(str(collatedTFBS_output), 'a+') as f:
                         match = re.search(lost_motif_minus.split(',')[2],seq_revcomp)
                         distance = len(seq_revcomp)-match.span()[0]-len(lost_motif_minus.split(',')[2])
                         sequence = ''.join(reversed(match.group()))
-                        print((11*' '+distance*' '+sequence+' <-- '+lost_motif_minus.split(',')[0]), file = f)  
+                        print((11*' '+distance*' '+sequence+' |-- '+lost_motif_minus.split(',')[0]+' (pval '+lost_motif_minus.split(',')[3]+')'), file = f)
+                print('', file = f)
             else:
                 pass
-            print('\n', file = f)
-
+                print('\n', file = f)
+                
 # Log TFBS collation operations time duration
-TFBScollationDuration = str(datetime.now() - startTime_TFBScollation).split(':')[0]+' hr|'+str(datetime.now() - startTime_TFBScollation).split(':')[1]+' min|'+str(datetime.now() - startTime_TFBScollation).split(':')[2].split('.')[0]+' sec'
-
+TFBScollationDuration = str(datetime.now() - startTime_TFBScollation).split(':')[0]+' hr|'+str(datetime.now() - startTime_TFBScollation).split(':')[1]+' min|'+str(datetime.now() - startTime_TFBScollation).split(':')[2].split('.')[0]+' sec|'+str(datetime.now() - startTime_TFBScollation).split(':')[2].split('.')[1]+' microsec'
+            
 # Assess files in output directory
-file_set = [file for file in os.listdir(output_directory) if Path(file).suffix in ('.txt','.fa')]    
-      
+file_set = [file for file in os.listdir(output_directory) if Path(file).suffix in ('.txt','.fa')] 
+
 # Assign script end time
 endTime = datetime.now()
 endTimestr = str(endTime).split(' ')[1].split('.')[0]
-      
+
 # Log entire script operations time duration
-processingDuration = str(datetime.now() - startTime).split(':')[0]+' hr|'+str(datetime.now() - startTime).split(':')[1]+' min|'+str(datetime.now() - startTime).split(':')[2].split('.')[0]+' sec'
-            
+processingDuration = str(datetime.now() - startTime).split(':')[0]+' hr|'+str(datetime.now() - startTime).split(':')[1]+' min|'+str(datetime.now() - startTime).split(':')[2].split('.')[0]+' sec|'+str(datetime.now() - startTime).split(':')[2].split('.')[1]+' microsec'
+   
 filename = Path(str(output_path)+ '/'+processdate+'_script_metrics.txt')
 with open(filename, 'a') as f:
-    print("""
-    
-    File output information:
-Output directory: """ + str(output_directory) +
+    print("""\n\nFile output information:
+    Output directory: """ + str(output_directory) +
 '\n    Total file #: ' + str(len(file_set)) +
-'\n    Total file output sizes: '+path_size(str(output_directory), file = f)
+'\n    Total file output sizes: '+path_size(str(output_directory)), file = f)
     for file in file_set:
         print('    '+file+': '+path_size(str(output_directory)+'/'+file), file = f)
     print("""\n\nScript operation times:
