@@ -18,10 +18,10 @@
 # v1.0/Committed 8-04-2019
 # ----------------------------------------------
 # For usage details, please refer to README file at GitHub location and to the following manuscript:
-#   Ehmsen, Knuesel, Asahina, Aridomi, Yamamoto (2019)
+#   Ehmsen, Knuesel, Asahina, Aridomi, Yamamoto (2020)
 # Please cite usage as:
 #   CollatedMotifs.py
-#   Ehmsen, Knuesel, Asahina, Aridomi, Yamamoto (2019)
+#   Ehmsen, Knuesel, Asahina, Aridomi, Yamamoto (2020)
 
 # Operation notes:
 # ==============================================
@@ -131,6 +131,34 @@
 #############################################################################
 # SCRIPT:
 
+# Check for availability of Python dependencies (libraries, modules) in path
+missing_dependencies_list = []
+
+try:
+    import psutil
+except ImportError:
+    missing_dependencies_list.append('psutil')
+    
+try:
+    import numpy
+except ImportError:
+    missing_dependencies_list.append('numpy')
+
+try:
+    import scipy
+except ImportError:
+    missing_dependencies_list.append('scipy')
+    
+if len(missing_dependencies_list) > 0:
+    print('ModuleNotFoundError\n')
+    print('Please note, the following required Python module(s) are not found in your Python system path:')
+    for i in missing_dependencies_list:
+        print('   '+i)
+    print('\nPlease exit the script and install these Python dependencies in your system path.')
+    print("""\nGuidelines for installation of Python dependencies can be found in the README file for
+    CollatedMotifs.py ('System Setup')""")
+    print("""    (Creation of a Python virtual environment is recommended)""")
+
 # Import libraries, modules
 # Operating system interfaces
 import os
@@ -145,6 +173,9 @@ import sys
 # Process and system utilities
 import psutil
 from psutil import virtual_memory
+
+# Gzip to read GNU zipped files
+import gzip
 
 # Low-level networking interface
 import socket
@@ -416,7 +447,7 @@ print("""
     CollatedMotifs.py v1.0
     ==============================================
     https://github.com/YamamotoLabUCSF/CollatedMotifs
-    Committed 9-04-2019
+    Committed 8-04-2019
     ----------------------------------------------
     This script accepts text to standard input, and returns a comparison of matches to
     transcription factor binding site (TFBS) motifs between a reference sequence and sample sequence(s).
@@ -427,11 +458,11 @@ print("""
     FIMO & FASTA-GET-MARKOV from the MEME suite of tools
     
     For usage details, please refer to README file at GitHub location and to the following manuscript:
-        Ehmsen, Knuesel, Martinez, Asahina, Aridomi, Yamamoto (2019)
+        Ehmsen, Knuesel, Martinez, Asahina, Aridomi, Yamamoto (2020)
     
     Please cite usage as:
         CollatedMotifs.py
-        Ehmsen, Knuesel, Martinez, Aridomi, Yamamoto (2019)
+        Ehmsen, Knuesel, Martinez, Aridomi, Yamamoto (2020)
     
     ===========================================================================
     Welcome.  You will be prompted for the following user-specific information:
@@ -560,7 +591,7 @@ fasta_get_markov_path = Path(str(fasta_get_markov_path))
 markov_background_file = Path(str(markov_background_file))
 
 # Collect fastq files from directory
-myFastqFilenames = [file for file in glob.glob(str(fastq_directory)+'/*') if Path(file).suffix == ".fastq"]
+myFastqFilenames = [file for file in glob.glob(str(fastq_directory)+'/*') if Path(file).suffix in [".gz",".fastq"]]
 
 #Sort fastq file names
 myFastqFilenames = sorted(myFastqFilenames)
@@ -596,20 +627,37 @@ calculated across the fastq files to be processed:
 # Collect Illumina run IDs from fastq files, consolidate to unique run IDs
 runIDlist = []
 for sourcefile in myFastqFilenames:
-    with open(sourcefile, "r") as f:
-        runID = ":".join(f.readline().split(":",-2)[:2])
-    if not runID in runIDlist:
-        runIDlist.append(runID) 
+    if Path(sourcefile).suffix == ".gz":
+        with gzip.open(sourcefile, "rt") as f:
+            runID = ":".join(f.readline().split(":",-2)[:2])
+            if not runID in runIDlist:
+                runIDlist.append(runID) 
+    elif Path(sourcefile).suffix == ".fastq":
+        with open(sourcefile, "r") as f:
+            runID = ":".join(f.readline().split(":",-2)[:2])
+            if not runID in runIDlist:
+                runIDlist.append(runID)
 
+# Collect total read counts for fastq files
 readcount = []
 for sourcefile in myFastqFilenames:
-    with open(sourcefile, "r") as f:
-        readcount.append(int(len((f).readlines())/4))
-
+    if Path(sourcefile).suffix == ".gz":
+        with gzip.open(sourcefile, "rt") as f:    
+            readcount.append(int(len((f).readlines())/4))
+    elif Path(sourcefile).suffix == ".fastq":
+        with open(sourcefile, "r") as f:
+            readcount.append(int(len((f).readlines())/4))
+        
+# Collect file sizes for fastq files
 filesize = []
 for sourcefile in myFastqFilenames:
-    filesize.append(round((os.path.getsize(sourcefile)/1048576),5))
+    if Path(sourcefile).suffix == ".gz":
+        with gzip.open(sourcefile, "rt") as f:
+            filesize.append(round((os.path.getsize(sourcefile)/1048576),5))
+    elif Path(sourcefile).suffix == ".fastq":
+        filesize.append(round((os.path.getsize(sourcefile)/1048576),5))
 
+# fastq_overview prepares summation of fastq file names, their sizes, and read counts, to be reported in script_metrics.txt    
 fastq_overview = list(zip(myFastqFilenames, filesize, readcount))
 
 print("""The following data were collected:  """)
@@ -866,13 +914,21 @@ for file_pair in R1_R2_map_list:
     cluster_merged_R1_R2revcomp_dict2 = {}
     merged_read_list = []
     counter=()
-    with open(R1_file, 'r') as f:
-        lines_R1 = f.readlines()
+    if Path(R1_file).suffix == ".gz":
+        with gzip.open(R1_file, "rt") as f:
+            lines_R1 = f.readlines()
+    elif Path(R1_file).suffix == ".fastq":
+        with open(R1_file, 'r') as f:
+            lines_R1 = f.readlines()    
     for x in range(0,len(lines_R1),4): 
         cluster_sequence_R1_dict[lines_R1[x].split(':')[5]+':'+lines_R1[x].split(':')[6].split(' ')[0]] = lines_R1[x+1].strip('\n')
     #cluster_IDs_list_R1 = [x.split(':')[5]+':'+x.split(':')[6].split(' ')[0] for x in lines_R1[0::4]]
-    with open(R2_file, 'r') as f:
-        lines_R2 = f.readlines()
+    if Path(R2_file).suffix == ".gz":
+        with gzip.open(R2_file, "rt") as f:
+            lines_R2 = f.readlines()
+    elif Path(R2_file).suffix == ".fastq":
+        with open(R2_file, 'r') as f:
+            lines_R2 = f.readlines()
     for x in range(0,len(lines_R2),4): 
         cluster_sequence_R2_dict[lines_R2[x].split(':')[5]+':'+lines_R2[x].split(':')[6].split(' ')[0]] = lines_R2[x+1].strip('\n')
     #cluster_IDs_list_R2 = [x.split(':')[5]+':'+x.split(':')[6].split(' ')[0] for x in lines_R2[0::4]]
@@ -895,7 +951,7 @@ for file_pair in R1_R2_map_list:
         modified_read_list_top5.append([i[0], '['+str(i[1])+'/'+str(sum(counter.values()))+']', raw_freq, int(stats.percentileofscore([i for i in counter.values()], i[1], 'rank')), round((100*i[1]/sum([i[1] for i in counter.most_common(5)])),2), round((100*i[1]/filtered1),2) if filtered1 > 0 and raw_freq >= 1 else 'None', round((100*i[1]/filtered10),2) if filtered10 > 0 and raw_freq >= 10 else 'None'])
     with open(str(query_input), 'a+') as file:
         for i in modified_read_list_top5:
-              file.write('>'+fastaname[0]+'_'+'R1+R2'+'_'+str(i[1])+'_%totalreads:'+str(i[2])+'_percentile:'+str(i[3])+'_%top5reads:'+str(i[4])+'_%readsfilteredfor1%:'+str(i[5])+'_%readsfilteredfor10%:'+str(i[6])+'\n'+i[0]+'\n')
+              file.write('>'+fastaname[0]+'_'+'R1+R2'+'_'+str(i[1])+'_%totalreads:'+str(i[2])+'_percentile:'+str(i[3])+'_%top5reads:'+str(i[4])+'_%readsfilteredfor1%:'+str(i[5])+'_%readsfilteredfor10%:'+str(i[6])+'\n'+i[0]+'\n')        
 
 # Log read count time duration      
 readcountDuration = readcountDuration = str(datetime.now()- startTime_readcount).split(':')[0]+' hr|'+str(datetime.now() - startTime_readcount).split(':')[1]+' min|'+str(datetime.now() - startTime_readcount).split(':')[2].split('.')[0]+' sec|'+str(datetime.now() - startTime_readcount).split(':')[2].split('.')[1]+' microsec'
