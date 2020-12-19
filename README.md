@@ -7,12 +7,12 @@ Define alleles for deeply sequenced genetic loci (PCR amplicons), and summarize 
 * [Features](#features)  
 * [Requirements](#requirements)
 * [Synopsis](#synopsis)
-* [System setup](#system%20setup)
-* [Code launch notes](#codelaunchnotes)
-* [Operation notes](#operationnotes)
-* [Input notes](#input%20notes)
-* [Output notes](#output%20notes)
-* [Visual summary of key script operations](#visual%20summary%20of%20key%20script%20operations)
+* [System setup](#system-setup)
+* [Code launch notes](#code-launch-notes)
+* [Operation notes](#operation-notes)
+* [Input notes](#input-notes)
+* [Output notes](#output-notes)
+* [Visual summary of key script operations](#visual-summary-of-key-script-operations)
 * [Status](#status)
 * [Contact](#contact)
 
@@ -267,7 +267,7 @@ You are now ready to install **additional Python modules** that CollatedMotifs.p
 
 *Additional setup*:  
 
-* Locally install **BLASTN**, **MAKEBLASTDB**, **FIMO**, and **FASTA-GET-MARKOV** (see **Requirements** above)  
+* Locally install **BLASTN**, **MAKEBLASTDB**, **FIMO**, and **FASTA-GET-MARKOV** (see **[Requirements](#requirements)** above)  
 <img src="CollatedMotifs_img/CollatedMotifs_executables.png" align="left" width="400">
 <br clear="all" />
     * *Note, separate installation of these external dependencies is not necessary if using the virtual machine file Alleles\_and\_altered\_motifs.ovf*
