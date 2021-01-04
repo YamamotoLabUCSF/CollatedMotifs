@@ -18,10 +18,10 @@
 # v1.0/Committed 8-04-2019
 # ----------------------------------------------
 # For usage details, please refer to README file at GitHub location and to the following manuscript:
-#   Ehmsen, Knuesel, Asahina, Aridomi, Yamamoto (2020)
+#   Ehmsen, Knuesel, Asahina, Aridomi, Yamamoto (2021)
 # Please cite usage as:
 #   CollatedMotifs.py
-#   Ehmsen, Knuesel, Asahina, Aridomi, Yamamoto (2020)
+#   Ehmsen, Knuesel, Asahina, Aridomi, Yamamoto (2021)
 
 # Operation notes:
 # ==============================================
@@ -458,11 +458,11 @@ print("""
     FIMO & FASTA-GET-MARKOV from the MEME suite of tools
     
     For usage details, please refer to README file at GitHub location and to the following manuscript:
-        Ehmsen, Knuesel, Martinez, Asahina, Aridomi, Yamamoto (2020)
+        Ehmsen, Knuesel, Martinez, Asahina, Aridomi, Yamamoto (2021)
     
     Please cite usage as:
         CollatedMotifs.py
-        Ehmsen, Knuesel, Martinez, Aridomi, Yamamoto (2020)
+        Ehmsen, Knuesel, Martinez, Aridomi, Yamamoto (2021)
     
     ===========================================================================
     Welcome.  You will be prompted for the following user-specific information:
