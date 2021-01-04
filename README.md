@@ -601,22 +601,20 @@ This script produces 5 output files in the user-specified output directory, plus
     - two directories contain FIMO output files (fimo_out and fimo_out_ref); each of these sub-directories contains 5 subsidiary files created by FIMO (cisml.xml, fimo.gff, fimo.html, fimo.tsv, fimo.xml)  
     - one directory comprises BLASTN alignment database (alignment_databse); this directory contains 6 subsidiary files created by MAKEBLASTDB operation on user-supplied fasta file containing reference sequence(s) (\*.nin, \*.nhr, \*.nog, \*.nsd, \*.nsg, \*.nsi)  
  <br clear="all" />
-  - **5 output files** in the user-specified output directory; these include:
-     
+  - **5 output files** in the user-specified output directory; these include:  
   
-    1. **fasta.fa**  
-        (collection of fasta entries representing top 5 most abundant sequences assigned to a single sample ID)  
-
-	2. **blastn_alignments.txt**  
+  1. **fasta.fa**  
+        (collection of fasta entries representing top 5 most abundant sequences assigned to a single sample ID)
+  2. **blastn_alignments.txt**  
         (output of BLASTN operation on fasta.fa)  
         
-   3. **markov_background.txt**  
+  3. **markov_background.txt**  
         (output of FASTA-GET-MARKOV operation on user-supplied fasta reference file)  
         
-   4. **collated_TFBS.txt**  
+  4. **collated_TFBS.txt**  
         (*key output*; output of script operation on FIMO-generated .tsv files in fimo\_out and fimo\_out\_ref)  
         
-   5. **script_metrics.txt**  
+  5. **script_metrics.txt**  
         (summary/analysis of script operation metrics \[metadata\])
 
        Directory structure under an output directory specified as 'CollatedMotifs', for example,
