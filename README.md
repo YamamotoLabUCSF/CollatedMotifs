@@ -600,7 +600,8 @@ This script produces 5 output files in the user-specified output directory, plus
   
     - two directories contain FIMO output files (fimo_out and fimo_out_ref); each of these sub-directories contains 5 subsidiary files created by FIMO (cisml.xml, fimo.gff, fimo.html, fimo.tsv, fimo.xml)  
     - one directory comprises BLASTN alignment database (alignment_databse); this directory contains 6 subsidiary files created by MAKEBLASTDB operation on user-supplied fasta file containing reference sequence(s) (\*.nin, \*.nhr, \*.nog, \*.nsd, \*.nsg, \*.nsi)  
- <br clear="all" />
+ <br clear="all" />  
+ 
   - **5 output files** in the user-specified output directory; these include:  
   
   1. **fasta.fa**  
