@@ -51,7 +51,7 @@ DNA sequence-selective **transcription factors (TFs)** mediate gene regulation; 
 * Outputs: TFBS comparison in alleles relative to reference sequence(s).
 
 ## <span style="color:darkturquoise">Requirements</span>
-* **Mac or Linux OS** note that FIMO is not compatible with Windows OS. For Windows users interested in running CollatedMotifs we reccomend installation of the **Alleles\_and\_altered\_motifs.ovf** which contains all the requirements within a Linux virtual machine
+* **Mac or Linux OS** note that FIMO is not compatible with Windows OS. For Windows users interested in running CollatedMotifs, we recommend installation of **Alleles\_and\_altered\_motifs.ovf**, which contains all the requirements within a Linux virtual machine
 * Python 3 - instructions for install below
 * Python libraries (numpy, pip, psutil, scipy, setuptools, and wheel) - instructions for install below
 * BLASTN (NCBI)<sup>1</sup>  
@@ -88,14 +88,14 @@ Please cite usage as:
 ---
 #### <span style="color:mediumturquoise">Alleles\_and\_altered\_motifs.ovf</span>   
 
-The programs are available for use either individually or packaged into a virtual machine which can be run on Mac, Linux, or Windows operating systems. The "Alleles_and_altered_motifs" virtual machine comes pre-installed with BLAST, MEME, the full hg38 genome BLAST database, test datasets, and all the external dependencies needed to run SampleSheet, CollatedMotifs, and Genotypes. Windows users are encouraged to use the virtual machine to run CollatedMotifs because the MEME suite software upon which CollatedMotifs relies is not natively supported on Windows OS).
+The programs are available for use either individually or packaged into a virtual machine which can be run on Mac, Linux, or Windows operating systems. The "Alleles_and_altered_motifs" virtual machine comes pre-installed with BLAST, MEME, the full hg38 genome BLAST database, test datasets, and all the external dependencies needed to run SampleSheet, CollatedMotifs, and Genotypes. Windows users are encouraged to use the virtual machine to run CollatedMotifs because the MEME suite software upon which CollatedMotifs relies is not natively supported on Windows OS.
 
-* Detailed instuctions on Virtual machine download and setup at <a href="https://doi.org/10.5281/zenodo.3406861">Download Alleles\_and\_altered\_motifs virtual machine</a> from Zenodo,  DOI 10.5281/zenodo.3406861)
+* Detailed instuctions on Virtual machine download and setup at <a href="https://doi.org/10.5281/zenodo.3406861">Download Alleles\_and\_altered\_motifs virtual machine</a> from Zenodo,  DOI 10.5281/zenodo.3406861
 
-* Note: Running the virtual machine requires virtualization software, such as Oracle VM VirtualBox available for download at <a href="https://www.virtualbox.org/">Download virtualbox Software</a>) https://www.virtualbox.org/
+* Note: Running the virtual machine requires virtualization software, such as Oracle VM VirtualBox available for download at <a href="https://www.virtualbox.org/">Download virtualbox Software</a> https://www.virtualbox.org/
 
 
-Linux and Mac users can also follw the steps below to install SampleSheet, Genotypes, and CollatedMotifs. If you are running Windows you can follow the steps below to install SampleSheet and Genotypes (without CollatedMotifs).
+Linux and Mac users can also follw the steps below to install SampleSheet, Genotypes, and CollatedMotifs. If you are running Windows, you can follow the steps below to install SampleSheet and Genotypes (without CollatedMotifs).
 
 
 
@@ -104,7 +104,7 @@ Linux and Mac users can also follw the steps below to install SampleSheet, Genot
 ---
 #### <span style="color:mediumturquoise">2.1. Python 3 setup</span>
 
-<span style="color:mediumturquoise"> Firts confirm that Python 3 (required) and Jupyter Notebook (optional) are available on your system, or download & install by following the steps below</span>   
+<span style="color:mediumturquoise"> First confirm that Python 3 (required) and Jupyter Notebook (optional) are available on your system, or download & install by following the steps below</span>   
 
 
 
@@ -140,9 +140,9 @@ Option 1) Install Python 3 prior to Jupyter Notebook **This option is recommende
 
 ##### <span style="color:mediumturquoise">Anaconda (Optional: Python 3 with Jupyter Notebook in one)</span>
  
-Option 2) To install Python 3 and Jupyter Notebook (together as part of Anaconda package)   
+Option 2) Install Python 3 and Jupyter Notebook (together as part of Anaconda package)   
    
-* Note this method has *only been tested for use of SampleSheet.py and Genotypes.py on Windows* and my not work on all Mac or Linux systems in conjunction with the use of Python Virtual Enviornments (virtualenv) to run CollatedMotifs.py**  
+* Note, this method has *only been tested for use of SampleSheet.py and Genotypes.py on Windows* and may not work on all Mac or Linux systems in conjunction with the use of Python Virtual Environments (virtualenv) to run CollatedMotifs.py**  
    
 * [Anaconda (with Jupyter Notebook) Download & Installation](https://jupyter.readthedocs.io/en/latest/install/notebook-classic.html) https://jupyter.readthedocs.io/en/latest/install/notebook-classic.html
 	* Download Anaconda with Python 3, and then follow installation guidelines and prompts when you double-click the downloaded package to complete installation.  
@@ -162,17 +162,17 @@ Anaconda with Jupyter Notebook on Mac
 ###### <span style="color:mediumturquoise">Anaconda on Linux</span>
 Anaconda with Jupyter Notebook on Linux   
 
-* To install Anaconda on Linux open terminal and navigate to the folder where Anaconda script (for example Anaconda3-2020.11-Linux-x86_64.sh) was downloaded.  
-	* Change the permissions to allow script execution with the chmod +x command for example:
+* To install Anaconda on Linux, open terminal and navigate to the folder where Anaconda script (for example Anaconda3-2020.11-Linux-x86_64.sh) was downloaded.  
+	* Change the permissions to allow script execution with the chmod +x command, for example:
   	`$ chmod +x Anaconda3-2020.11-Linux-x86_64.sh` 
-	* Open the shell script with the ./ command for example:
+	* Open the shell script with the ./ command, for example:
   	`$ ./Anaconda3-2020.11-Linux-x86_64.sh`
-	* Follow the on-screen prompts and answering "yes" to "Do you whish the installer to initialize Anaconda3 by running conda init? [yes|no]"  
+	* Follow the on-screen prompts and answer "yes" to, "Do you whish the installer to initialize Anaconda3 by running conda init? [yes|no]"  
 	* When the install is finished, restart terminal to initiate the new settings
 	* Anaconda navigator can be opened by the following command in a new terminal
   	`$ anaconda-navigator`
-	* Jupyter Notebook can be opened through a selected internet browser (Google Chrome and FireFox have been tested) by selecting "Launch" on the Jupyter Notebook icon from within the home screen of the Anaconda Navigator. Note (base) may appear at the far left of the terminal when Anaconda is activated
-	* To deactivate Anaconda and revert to your default Python settings run the following terminal   command:
+	* Jupyter Notebook can be opened through a selected internet browser (Google Chrome and FireFox have been tested) by selecting "Launch" on the Jupyter Notebook icon from within the home screen of the Anaconda Navigator. Note: (base) may appear at the far left of the terminal when Anaconda is activated
+	* To deactivate Anaconda and revert to your default Python settings, run the following terminal command:
   	`$ conda deactivate` 
 	* To reactivate Anaconda and allow use of anaconda-navigator, run the following terminal command:
    	`$ conda activate`
@@ -191,13 +191,13 @@ Anaconda with Jupyter Notebook on Linux
 						(base) $ which jupyter-notebook
 						/home/altered/anaconda3/bin/jupyter-notebook
 
-	* If you wish to open new default terminals with anaconda deactivated add the `$ conda deactivate` command after the conda init code in your .bashrc file and use the `$ conda activate` command prior to use of the `$ anaconda-navigator` when opening Jupyter Notebooks  
+	* If you wish to open new default terminals with anaconda deactivated, add the `$ conda deactivate` command after the conda init code in your .bashrc file and use the `$ conda activate` command prior to use of the `$ anaconda-navigator` when opening Jupyter Notebooks  
 	
 ###### <span style="color:mediumturquoise">Anaconda on Windows</span>
 
 Anaconda with Jupyter Notebook on Windows for use with SampleSheet.py and Genotypes.py only:
   			
-* Anaconda with Jupyter Notebook installed on a Windows OS will make a separate “Anaconda3 (64 bit)” folder available through the start menu and is kept separate from any other version of Python or Jupyter Notebook on your system. In the Anaconda 3 (64 bit) folder the user will find:
+* Anaconda with Jupyter Notebook installed on a Windows OS will make a separate “Anaconda3 (64 bit)” folder available through the start menu and is kept separate from any other version of Python or Jupyter Notebook on your system. In the Anaconda 3 (64 bit) folder, the user will find:
 
 >Anaconda PowerShell Prompt (Anaconda 3)     
 >Jupyter Notebook (Anaconda 3)   
@@ -206,7 +206,7 @@ Jupyter Notebook can be run through Anaconda in Windows by opening the “Jupyte
    
 			
 #### <span style="color:mediumturquoise">Jupyter Notebook (optional)<span>
-*Note, these steps are not required for running the command line SampleSheet.py, but are necessary to run the browser-based Jupyter Notebook SampleSheet.ipynb*.  
+*Note, these steps are not required to run the command line CollatedMotifs.py, but are necessary to run the browser-based Jupyter Notebook CollatedMotifs.ipynb*.  
 
 - Jupyter Notebook is *not* generally pre-installed on Mac/Linux OS.  To check whether Jupyter Notebook is available with Python 3 on your machine, issue the following command:   
 
@@ -269,7 +269,7 @@ CollatedMotifs.py can be accessed as a **Jupyter Notebook** or **Python program 
 	
 		* To create an empty directory named 'CollatedMotifsCode', in the 'Documents' directory:*  
 	`$ mkdir /Users/yourusername/Documents/CollatedMotifsCode`
-		* To navigate to the directory named 'CollatedMotifs':	`$ cd /Users/yourusername/Documents/CollatedMotifsCode`
+		* To navigate to the directory named 'CollatedMotifsCode':	`$ cd /Users/yourusername/Documents/CollatedMotifsCode`
 
 	* For example, on Windows PowerShell:  
 	 
@@ -287,11 +287,11 @@ CollatedMotifs.py can be accessed as a **Jupyter Notebook** or **Python program 
 
 Python 3 Libraries (required) and virtual environment (optional)
 
-You are now ready to install an **additional Python module** that CollatedMotifs.py requires for operation.  These Python modules can be installed using one of the following two options:
+You are now ready to install **additional Python modules** that CollatedMotifs.py requires for operation.  These Python modules can be installed using one of the following two options:
 
-* Option A) Utilizing the pip3 command to automatically download the required libraries from the Python Package Index repository ([PyPI](https://pypi.org/)) (https://pypi.org/) and install them into your primary Python 3 directory from the requirements file 'CollatedMotifs_requirements.txt'. This method is the most simple to execute and will be outlined first.
+* Option A) Use the pip3 command to automatically download the required libraries from the Python Package Index repository ([PyPI](https://pypi.org/)) (https://pypi.org/) and install them into your primary Python 3 directory from the requirements file, 'CollatedMotifs_requirements.txt'. This method is the most simple to execute and will be outlined first.
 
-* Option B) Installing a Python **virtual environment** (self-contained 'directory' with all the Python modules needed to run CollatedMotifs.py). This method retains your original Python 3 install unchanged, protecting it from any possible library version conflicts that may arise from installing or updating the CollatedMotifs.py required libraries.  
+* Option B) Install a Python **virtual environment** (self-contained 'directory' with all the Python modules needed to run CollatedMotifs.py). This method retains your original Python 3 install unchanged, protecting it from any possible library version conflicts that may arise from installing or updating the CollatedMotifs.py required libraries.  
   
 ##### <span style="color:mediumturquoise">Libraries in default Python</span>  
   
@@ -325,7 +325,7 @@ You are now ready to install an **additional Python module** that CollatedMotifs
 	
 	pip3 is Python 3's installation manager, and as long as there is an internet connection available, pip3 or pip will access the specified module from PyPI (here, virtualenv) and install it for access by Python 3.
 
-2. Next, choose a **directory location** on your machine where you would like to install the files associated with a virtual environment.  This can be any folder/directory location you like (for example, you may have a favorite directory where other Python virtual environments are stored).  Alternatively, simply create the Python virtual environment in the CollatedMotifs directory you created above (in section 2d).  At the command line, navigate to the location of this directory.
+2. Next, choose a **directory location** on your machine where you would like to install the files associated with a virtual environment.  This can be any folder/directory location you like (for example, you may have a favorite directory where other Python virtual environments are stored).  Alternatively, simply create the Python virtual environment in the CollatedMotifsCode directory you created above (in section 2d).  At the command line, navigate to the location of this directory.
 	* For example:
 		* To navigate to the directory named 'CollatedMotifsCode':  
 		`$ cd ~/Documents/CollatedMotifsCode`
@@ -406,7 +406,7 @@ followed by your administrator password
 **Additional notes on: </sup> BLAST+ suite** available for download @ <a href="https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download">Download BLAST Software and Databases</a>)  
 
 * NCBI recommends Mac users install using the ncbi-blast-2.2.18+.dmg file.
-* MacOS 10.15 and higher have enhanced secutity that will require extra steps to install the ncbi-blast-2.2.18+.dmg
+* MacOS 10.15 and higher have enhanced security that will require extra steps to install the ncbi-blast-2.2.18+.dmg
 	* With Mac OS 10.15 or higher, you may encounter a ' "ncbi-blast-2.11.0+.pkg" cannot be opened because it is from an unidentified developer' error.
 	* If so, click on the question mark on the bottom left of the error window and follow the on-screen instructions to open the General Security Pane and allow the install.
 * The default BLAST install location from the .dmg file is: `/usr/local/ncbi/blast`
@@ -434,18 +434,18 @@ Code is available as a Jupyter Notebook file (**CollatedMotifs.ipynb**) or as a 
 
 ### <span style="color:mediumturquoise">Python program (CollatedMotifs.py) or Jupyter Notebook (CollatedMotifs.ipynb)</span>
 
-In [System setup](#system-setup) above, you downloaded and installed Python 3 & the CollatedMotifs code repository.  Optionally you may have also installed Jupyter Notebook & created a Python virtual environment (CollatedMotifs\_env) containing the Python modules that CollatedMotifs.py needs in order to run.  To access CollatedMotifs.py (Jupyter Notebook or Python program file) for interactive work, proceed through guidelines indicated below.  
+In [System setup](#system-setup) above, you downloaded and installed Python 3 & the CollatedMotifs code repository.  Optionally, you may have also installed Jupyter Notebook & created a Python virtual environment (CollatedMotifs\_env) containing the Python modules that CollatedMotifs.py needs in order to run.  To access CollatedMotifs.py (Jupyter Notebook or Python program file) for interactive work, proceed through guidelines indicated below.  
 
 
 #### <span style="color:mediumturquoise">Launching .py program</span>
 ##### <span style="color:mediumturquoise">Command line .py</span>
 
 
-* To start the CollatedMotifs.py program directly from the command line enter the follwing command
+* To start the CollatedMotifs.py program directly from the command line, enter the following command:
 
 	`$ python3 [path_to_CollatedMotifs.py]/CollatedMotifs.py`
 
-* for example if you installed CollatedMotifs.py within the CollatedMotifsCode folder on your desktop the command would be:
+* For example, if you installed CollatedMotifs.py within the CollatedMotifsCode folder on your desktop the command would be:
 
 	`$ python3 ~/Desktop/CollatedMotifsCode/CollatedMotifs.py`
 
@@ -453,7 +453,7 @@ In [System setup](#system-setup) above, you downloaded and installed Python 3 & 
 
 ##### <span style="color:mediumturquoise">Command line .py in virtual environment</span>
 
-1.  If you plan to run CollatedMotifs.py using the CollateMotifs_env Python3 virtual environment from your command line, first navigate to the directory containing **CollatedMotifs.py**.  Prepare access to a Python virtual environment containing appropriate packages required by CollatedMotifs.py, as described in [System setup](#system-setup).  
+1.  If you plan to run CollatedMotifs.py using the CollatedMotifs_env Python3 virtual environment from your command line, first navigate to the directory containing **CollatedMotifs.py**.  Prepare access to a Python virtual environment containing appropriate packages required by CollatedMotifs.py, as described in [System setup](#system-setup).  
 
     (a) Activate CollatedMotifs_env:   
 	`$ source CollatedMotifs_env/bin/activate` (Mac/Linux OS)   
