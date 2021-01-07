@@ -412,7 +412,7 @@ followed by your administrator password
 * The default BLAST install location from the .dmg file is: `/usr/local/ncbi/blast`
 
 
-**Additional notes on: </sup> MEME Suite** available for download @ <a href="http://meme-suite.org/doc/download.html">Download MEME Suite and Databases</a>)  
+**Additional notes on MEME Suite** available for download @ <a href="http://meme-suite.org/doc/download.html">Download MEME Suite and Databases</a>)  
 **Detailed instuctions on MEME Suite install** available @ <a href="http://meme-suite.org/doc/install.html?man_type=web">MEME Suite Install Instructions</a>)    
 
 * CollatedMotifs.py only uses a small subset of the MEME Suite.
