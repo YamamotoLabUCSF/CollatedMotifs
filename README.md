@@ -419,14 +419,20 @@ followed by your administrator password
 * The MEME Suite has several internal dependencies that do not affect CollatedMotifs.py
 	* The 'make test' step of MEME setup may result in a 'FAIL: meme-chip1 (missing summary.tsv)' error - This is due to a missing Perl dependency and will not affect CollatedMotifs.py.
 	* meme-chip1 is not used in SampleSheet.py, CollateMotifs.py, or Genotypes.py so this error can be ignored.
-* After MEME install, the following line should be added to the end of your `.zshrc` file (Mac) or `.bashrc` file (Linux) to add MEME to your path and allow CollatedMotifs.py to call upon it for use: `PATH=/Users/yourusername/meme/bin:/Users/yourusername/meme/libexec/meme-5.3.0:$PATH` replacing 'yourusername' with your specific user name.
-	* If you do not have a `.zshrc` in your home directory create one with a text editor and add the command.
-	* use caution any time you are editing a system file such as `.zshrc` or `.bashrc` and prepare a backup of the file before editing.
-* The default install location of FIMO is:   
-	`/Users/[user]/meme/bin/fimo`
-* The default location of MEME 'fasta-get-markov' is:   
-	`/Users/[user]/meme/libexec/meme-5.3.0/fasta-get-markov`   
-
+* After MEME install, the following line should be added to the end of your `.zshrc` file (Mac) or `.bashrc` file (Linux) to add MEME to your path and allow CollatedMotifs.py to call upon it for use:  
+		`export PATH=$HOME/meme/bin:$HOME/Users/[user]/meme/bin:/Users/[user]/meme/libexec/meme-5.3.0:$PATH` replacing '[user]' with your specific user name for Mac  
+		or `export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.3.0:$PATH` for Linux.  
+	* If you do not have a `.zshrc` in your home directory create one with a text editor and add the command.  
+	* use caution any time you are editing a system file such as `.zshrc` or `.bashrc` and prepare a backup of the file before editing.  
+* The default install location of FIMO on Mac is:   
+	`/Users/[user]/meme/bin/fimo` where '[user]' is your specific user name  
+* The default location of MEME 'fasta-get-markov' on Mac is:   
+	`/Users/[user]/meme/libexec/meme-5.3.0/fasta-get-markov` where '[user]' is your specific user name  
+	
+* The default install location of FIMO on Linux is:   
+	`/home/[user]/meme/bin/fimo` where '[user]' is your specific user name  
+* The default location of MEME 'fasta-get-markov' on Linux is:   
+	`/home/[user]/meme/libexec/meme-5.3.0/fasta-get-markov` where '[user]' is your specific user name  
 <br>  
 
 ## <span style="color:darkturquoise">Code launch notes</span>  
