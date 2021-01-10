@@ -1,5 +1,5 @@
 User-entered variables:
-    output_directory: /Users/kirkehmsen/Desktop/072719_CollatedMotifs_KE4
+    output_directory: /Users/kirkehmsen/Desktop/CollatedMotifsOutput
     fastq_directory: /Users/kirkehmsen/Documents/fastq_files
     fasta_ref: /Users/kirkehmsen/Desktop/FKBP5_GOR+86.848kb_KE4.txt
     blastn_path: /Users/kirkehmsen/anaconda3/bin/blastn
