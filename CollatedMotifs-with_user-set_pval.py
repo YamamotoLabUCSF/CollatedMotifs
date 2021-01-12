@@ -1131,7 +1131,7 @@ cmd_TFBS = str(fimo_path)+' --bfile '+str(markovbackground_output)+' --o '+str(r
 os.system(cmd_TFBS)
 
 # Alleles: FIMO command (usage: fimo --bfile <background file> <motif file> <sequence file>) 
-cmd_TFBS = str(fimo_path)+' --bfile '+str(markovbackground_output)+' --o '+str(ref_TFBS_output)+' --thresh '+pval_threshold+' '+str(allele_TFBS_output)+' '+str(fimo_motifs_path)+' '+str(query_input)
+cmd_TFBS = str(fimo_path)+' --bfile '+str(markovbackground_output)+' --o '+str(allele_TFBS_output)+' --thresh '+pval_threshold+' '+str(fimo_motifs_path)+' '+str(query_input)
 
 os.system(cmd_TFBS)
 
