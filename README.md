@@ -48,10 +48,10 @@ DNA sequence-selective **transcription factors (TFs)** mediate gene regulation; 
 ## <span style="color:darkturquoise">Features</span>
 * Automates allele definitions for amplicons deeply sequenced on Illumina® platforms; identifies matches to TFBS motifs in allele sequences and in user-provided reference sequence(s); presents summation of 'lost' *vs.* 'gained' motif matches in alleles relative to reference sequence.
 * Input: demultiplexed fastq files; fasta file(s) containing reference sequence(s) for alignment and TFBS comparison; positional frequency matrix database file (MEME format).
-* Outputs: TFBS comparison in alleles relative to reference sequence(s).
+* Outputs: TFBS comparison in alleles relative to reference sequence(s) (text file and Excel spreadsheet file outputs).
 
 ## <span style="color:darkturquoise">Requirements</span>
-* **Mac or Linux OS** note that FIMO is not compatible with Windows OS. For Windows users interested in running CollatedMotifs, we recommend installation of **Alleles\_and\_altered\_motifs.ovf**, which contains all the requirements within a Linux virtual machine
+* **Mac or Linux OS** note that FIMO is not compatible with Windows OS. For Windows users interested in running CollatedMotifs, we recommend installation of **Alleles\_and\_altered\_motifs.ova**, which contains all the requirements within a Linux virtual machine
 * Python 3 - instructions for install below
 * Python libraries (numpy, pip, psutil, scipy, setuptools, and wheel) - instructions for install below
 * BLASTN (NCBI)<sup>1</sup>  
@@ -66,11 +66,11 @@ DNA sequence-selective **transcription factors (TFs)** mediate gene regulation; 
 
   
 ## <span style="color:darkturquoise">Synopsis</span>
-**This script returns alleles and TFBS collated as 'new' or 'lost' relative to a reference sequence, for sample-specific amplicons deeply sequenced on Illumina® sequencing platforms.**
+**This script returns alleles and TFBSs collated as 'new' or 'lost' relative to a reference sequence, for sample-specific amplicons deeply sequenced on Illumina® sequencing platforms.**
 >(see '[Output notes](#output-notes)' for file output details).  
 
 
-**Users are asked for paths to (1) an output directory, (2) fastq directory (sample sequence sources), (3) BLASTN executable, (4) MAKEBLASTDB executable, (5) FIMO executable, (6) FASTA-GET-MARKOV executable, (7) BLAST reference sequence file (+prefix common to database files), (8) fasta file with reference sequence(s) to be queried as basis for TFBS comparison, and (9) positional frequency matrix file (Meme format) for TFs.**
+**Users are asked for paths to (1) an output directory, (2) fastq directory (sample sequence sources), (3) BLASTN executable, (4) MAKEBLASTDB executable, (5) FIMO executable, (6) FASTA-GET-MARKOV executable, (7) BLAST reference sequence file (+prefix common to database files), (8) fasta file with reference sequence(s) to be queried as basis for TFBS comparison, and (9) positional frequency matrix file (Meme format) for TFs.  Users are also asked for a database prefix to supply to files in the reference sequence alignment database created by MAKEBLASTDB, and (optional) the identify of a TF of interest on which to highlight analysis of lost TFBSs in the Excel spreadsheet output.**  
 
 >(see '[Input notes](#input-notes)' for details).
     
@@ -86,18 +86,16 @@ Please cite usage as:
 
 ### <span style="color:mediumturquoise">Virtual machine<span>   
 ---
-#### <span style="color:mediumturquoise">Alleles\_and\_altered\_motifs.ovf</span>   
+#### <span style="color:mediumturquoise">Alleles\_and\_altered\_motifs.ova</span>   
 
 The programs are available for use either individually or packaged into a virtual machine which can be run on Mac, Linux, or Windows operating systems. The "Alleles_and_altered_motifs" virtual machine comes pre-installed with BLAST, MEME, the full hg38 genome BLAST database, test datasets, and all the external dependencies needed to run SampleSheet, CollatedMotifs, and Genotypes. Windows users are encouraged to use the virtual machine to run CollatedMotifs because the MEME suite software upon which CollatedMotifs relies is not natively supported on Windows OS.
 
 * Detailed instuctions on Virtual machine download and setup at <a href="https://doi.org/10.5281/zenodo.3406861">Download Alleles\_and\_altered\_motifs virtual machine</a> from Zenodo,  DOI 10.5281/zenodo.3406861
 
-* Note: Running the virtual machine requires virtualization software, such as Oracle VM VirtualBox available for download at <a href="https://www.virtualbox.org/">Download virtualbox Software</a> https://www.virtualbox.org/
+* Note: Running the virtual machine requires virtualization software, such as Oracle VM VirtualBox, available for download at <a href="https://www.virtualbox.org/">Download virtualbox Software</a> https://www.virtualbox.org/
 
 
-Linux and Mac users can also follw the steps below to install SampleSheet, Genotypes, and CollatedMotifs. If you are running Windows, you can follow the steps below to install SampleSheet and Genotypes (without CollatedMotifs).
-
-
+Linux and Mac users can also follow the steps below to install SampleSheet, Genotypes, and CollatedMotifs.
 
 
 ### <span style="color:mediumturquoise">Direct install<span>  
@@ -151,7 +149,7 @@ Option 2) Install Python 3 and Jupyter Notebook (together as part of Anaconda pa
 ###### <span style="color:mediumturquoise">Anaconda on Mac</span>
 Anaconda with Jupyter Notebook on Mac   
 
-* Anaconda with Jupyter Notebook installed on a Mac/Linux OS will install the “Anaconda-Navigator” application in Applications folder. Within the Anaconda-Navigator application the user will find:
+* Anaconda with Jupyter Notebook installed on a Mac/Linux OS will install the “Anaconda-Navigator” application in the Applications folder. Within the Anaconda-Navigator application, the user will find:
 
 	>Jupyter Notebook  
 
@@ -169,7 +167,7 @@ Anaconda with Jupyter Notebook on Linux
   	`$ ./Anaconda3-2020.11-Linux-x86_64.sh`
 	* Follow the on-screen prompts and answer "yes" to, "Do you whish the installer to initialize Anaconda3 by running conda init? [yes|no]"  
 	* When the install is finished, restart terminal to initiate the new settings
-	* Anaconda navigator can be opened by the following command in a new terminal
+	* Anaconda Navigator can be opened by the following command in a new terminal
   	`$ anaconda-navigator`
 	* Jupyter Notebook can be opened through a selected internet browser (Google Chrome and FireFox have been tested) by selecting "Launch" on the Jupyter Notebook icon from within the home screen of the Anaconda Navigator. Note: (base) may appear at the far left of the terminal when Anaconda is activated
 	* To deactivate Anaconda and revert to your default Python settings, run the following terminal command:
@@ -191,7 +189,7 @@ Anaconda with Jupyter Notebook on Linux
 						(base) $ which jupyter-notebook
 						/home/altered/anaconda3/bin/jupyter-notebook
 
-	* If you wish to open new default terminals with anaconda deactivated, add the `$ conda deactivate` command after the conda init code in your .bashrc file and use the `$ conda activate` command prior to use of the `$ anaconda-navigator` when opening Jupyter Notebooks  
+	* If you wish to open new default terminals with Anaconda deactivated, add the `$ conda deactivate` command after the conda init code in your .bashrc file and use the `$ conda activate` command prior to use of the `$ anaconda-navigator` when opening Jupyter Notebooks  
 	
 ###### <span style="color:mediumturquoise">Anaconda on Windows</span>
 
@@ -256,7 +254,7 @@ CollatedMotifs.py can be accessed as a **Jupyter Notebook** or **Python program 
 
 	**Clone:**   
 	  
-	* first click on the repository name	 to access the repository
+	* first click on the repository name to access the repository
 	* then click on the right-hand arrow of the **green download icon, labeled "Code"**, to access the drop-down menu with **Clone** options (HTTPS or GitHub CLI).
 	* If selecting the HTTPS option, copy the indicated URL and paste it at your command-line as an argument to the command 'git clone':  
 	`$ git clone https://github.com/YamamotoLabUCSF/CollatedMotifs.git` 
@@ -291,7 +289,7 @@ You are now ready to install **additional Python modules** that CollatedMotifs.p
 
 * Option A) Use the pip3 command to automatically download the required libraries from the Python Package Index repository ([PyPI](https://pypi.org/)) (https://pypi.org/) and install them into your primary Python 3 directory from the requirements file, 'CollatedMotifs_requirements.txt'. This method is the most simple to execute and will be outlined first.
 
-* Option B) Install a Python **virtual environment** (self-contained 'directory' with all the Python modules needed to run CollatedMotifs.py). This method retains your original Python 3 install unchanged, protecting it from any possible library version conflicts that may arise from installing or updating the CollatedMotifs.py required libraries.  
+* Option B) Install a Python **virtual environment** (self-contained 'directory' with all the Python modules needed to run CollatedMotifs.py). This method retains your original Python 3 installation unchanged, protecting it from any possible library version conflicts that may arise from installing or updating the CollatedMotifs.py required libraries.  
   
 ##### <span style="color:mediumturquoise">Libraries in default Python</span>  
   
@@ -325,7 +323,7 @@ You are now ready to install **additional Python modules** that CollatedMotifs.p
 	
 	pip3 is Python 3's installation manager, and as long as there is an internet connection available, pip3 or pip will access the specified module from PyPI (here, virtualenv) and install it for access by Python 3.
 
-2. Next, choose a **directory location** on your machine where you would like to install the files associated with a virtual environment.  This can be any folder/directory location you like (for example, you may have a favorite directory where other Python virtual environments are stored).  Alternatively, simply create the Python virtual environment in the CollatedMotifsCode directory you created above (in section 2d).  At the command line, navigate to the location of this directory.
+2. Next, choose a **directory location** on your machine where you would like to install the files associated with a virtual environment.  This can be any folder/directory location you like (for example, you may have a favorite directory where other Python virtual environments are stored).  Alternatively, simply create the Python virtual environment in the CollatedMotifsCode directory you created above (in section 2.2.d).  At the command line, navigate to the location of this directory.
 	* For example:
 		* To navigate to the directory named 'CollatedMotifsCode':  
 		`$ cd ~/Documents/CollatedMotifsCode`
@@ -385,7 +383,7 @@ followed by your administrator password
 
 	`$ rm -rf CollatedMotifs_env`  (Mac/Linux OS)  
      or  
-	`$ rm SampleSheet_env -r -fo`  (Widows PowerShell)  
+	`$ rm CollatedMotifs_env -r -fo`  (Windows PowerShell)  
 
 	This would delete the virtual environment from your machine.
 
@@ -400,7 +398,7 @@ followed by your administrator password
 <br clear="all" />
 
 * See [Requirements](#requirements) 
-* *Note, separate installation of these external dependencies is not necessary if using the virtual machine file Alleles\_and\_altered\_motifs.ovf*
+* *Note, separate installation of these external dependencies is not necessary if using the virtual machine file Alleles\_and\_altered\_motifs.ova*
 
 
 **Additional notes on: </sup> BLAST+ suite** available for download @ <a href="https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download">Download BLAST Software and Databases</a>)  
@@ -418,26 +416,26 @@ followed by your administrator password
 * CollatedMotifs.py only uses a small subset of the MEME Suite.
 * The MEME Suite has several internal dependencies that do not affect CollatedMotifs.py
 	* The 'make test' step of MEME setup may result in a 'FAIL: meme-chip1 (missing summary.tsv)' error - This is due to a missing Perl dependency and will not affect CollatedMotifs.py.
-	* meme-chip1 is not used in SampleSheet.py, CollateMotifs.py, or Genotypes.py so this error can be ignored.
+	* meme-chip1 is not used in SampleSheet.py, CollatedMotifs.py, or Genotypes.py so this error can be ignored.
 * After MEME install, the following line should be added to the end of your `.zshrc` file (Mac) or `.bashrc` file (Linux) to add MEME to your path and allow CollatedMotifs.py to call upon it for use:  
 		`export PATH=$HOME/meme/bin:$HOME/Users/[user]/meme/bin:/Users/[user]/meme/libexec/meme-5.3.0:$PATH` replacing '[user]' with your specific user name for Mac  
 		or `export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.3.0:$PATH` for Linux.  
-	* If you do not have a `.zshrc` in your home directory create one with a text editor and add the command.  
+	* If you do not have a `.zshrc` in your home directory, create one with a text editor and add the command.  
 	* use caution any time you are editing a system file such as `.zshrc` or `.bashrc` and prepare a backup of the file before editing.  
 * The default install location of FIMO on Mac is:   
-	`/Users/[user]/meme/bin/fimo` where '[user]' is your specific user name  
+	`/Users/[user]/meme/bin/fimo`, where '[user]' is your specific user name  
 * The default location of MEME 'fasta-get-markov' on Mac is:   
-	`/Users/[user]/meme/libexec/meme-5.3.0/fasta-get-markov` where '[user]' is your specific user name  
+	`/Users/[user]/meme/libexec/meme-5.3.0/fasta-get-markov`, where '[user]' is your specific user name  
 	
 * The default install location of FIMO on Linux is:   
-	`/home/[user]/meme/bin/fimo` where '[user]' is your specific user name  
+	`/home/[user]/meme/bin/fimo`, where '[user]' is your specific user name  
 * The default location of MEME 'fasta-get-markov' on Linux is:   
-	`/home/[user]/meme/libexec/meme-5.3.0/fasta-get-markov` where '[user]' is your specific user name  
+	`/home/[user]/meme/libexec/meme-5.3.0/fasta-get-markov`, where '[user]' is your specific user name  
 <br>  
 
 ## <span style="color:darkturquoise">Code launch notes</span>  
   
-Code is available as a Jupyter Notebook file (**CollatedMotifs.ipynb**) or as a Python program file (**CollatedMotifs.py**) for direct use, or pre-packaged with all dependencies as an Open Virtualization Format file for virtual machines (**Alleles\_and\_altered\_motifs.ovf**).  
+Code is available as a Jupyter Notebook file (**CollatedMotifs.ipynb**) or as a Python program file (**CollatedMotifs.py**) for direct use, or pre-packaged with all dependencies as an Open Virtualization Format file for virtual machines (**Alleles\_and\_altered\_motifs.ova**).  
 
 ### <span style="color:mediumturquoise">Python program (CollatedMotifs.py) or Jupyter Notebook (CollatedMotifs.ipynb)</span>
 
@@ -452,7 +450,7 @@ In [System setup](#system-setup) above, you downloaded and installed Python 3 & 
 
 	`$ python3 [path_to_CollatedMotifs.py]/CollatedMotifs.py`
 
-* For example, if you installed CollatedMotifs.py within the CollatedMotifsCode folder on your desktop the command would be:
+* For example, if you installed CollatedMotifs.py within the CollatedMotifsCode folder on your desktop, the command would be:
 
 	`$ python3 ~/Desktop/CollatedMotifsCode/CollatedMotifs.py`
 
@@ -494,7 +492,7 @@ Note, Jupyter Notebook file requires CollatedMotifs_img directory containing fiv
 
 *Note*, Jupyter Notebook file requires *CollatedMotifs_img* directory containing five image files to be available in the directory from which the Jupyter Notebook will be opened.   
 
-1.  If you downloaded **Anaconda (with Jupyter Notebook)**, launch the Anaconda-Navigator application.  Click on **Jupyter Notebook** to activate Jupyter Notebook. Otherwise open Jupyter Notebook with the terminal command `$ jupyter notebook` or `$ jupyter-notebook`  
+1.  If you downloaded **Anaconda (with Jupyter Notebook)**, launch the Anaconda-Navigator application.  Click on **Jupyter Notebook** to activate Jupyter Notebook. Otherwise, open Jupyter Notebook with the terminal command `$ jupyter notebook` or `$ jupyter-notebook`  
 
 2.  You will see a new **tab open automatically in your default web browser** (such as Chrome), in which there is a **directory tree** illustrating the current file contents of the **current working** directory.  Navigate to the directory containing **CollatedMotifs.ipynb**.  Click on the **CollatedMotifs.ipynb** file to open it as a Jupyter Notebook.   
 
@@ -551,13 +549,13 @@ Note, Jupyter Notebook file requires CollatedMotifs_img directory containing fiv
         
 **Operations overview:** *See 
 Input notes' and 'Output notes'*  
-'collated\_TFBS.txt' (file labeled *i* below): Key output file containing script interpretations of sample alleles & TFBS collation ('new' *vs.* 'lost' relative to reference sequence(s)).
+'collated\_TFBS.txt' (file labeled *i* below): Key output file containing script interpretations of sample alleles & TFBS collation ('new' *vs.* 'lost' relative to reference sequence(s)); collated\_TFBS.xlsx' (file labeled *ii* below): Key output file containing searchable, sortable spreadsheets that log sample alleles & TFBS collations (including interpretations as 'lost-regained pairs', and if the user specifies a TF of interest, (1) allele interpretations as having lost a TFBS for the TF of interest in up to three categories (exclusive loss without regain or gain, loss with regain ('native' TBFS as defined in reference sequence is lost, but genetic difference to reference sequence leads to regain of a different TFBS for the same TF), or loss with gain ('native' TFBS is lost, but genetic difference to reference sequence leads to gain of a TFBS for a different TF), and (2) sample curation based on % of high-ranked alleles that have lost TFBS for TF of interest across the 3 categories.
 <br/>
 <img src="CollatedMotifs_img/CollatedMotifs_fileoutputs.png" align="left" width="700">
 <br clear="all" />
 
 ## <span style="color:darkturquoise">Input notes</span>
-You will be prompted for the following user-specific information (10 items):
+You will be prompted for the following user-specific information (10 required items, 1 optional item):
 
 **Required** (10 strings: 9 strings specifying directory, executable, or file locations, + 1 string specifying prefix to be assigned to BLASTN database files):  
 
@@ -600,8 +598,10 @@ You will be prompted for the following user-specific information (10 items):
       <li>what common prefix (\*) will you assign to the six files (*.nin, *.nhr, *.nog, *.nsd, *.nsg, *.nsi) created by MAKEBLASTDB, as the alignment database for BLASTN?</li>
      </ul>
 
+**Optional** (1 string specifying "TF of interest" (TF name occurring in user-supplied positional frequency matrix file for FIMO)). 
+
 ## <span style="color:darkturquoise">Output notes</span>
-This script produces 5 output files in the user-specified output directory, plus three sub-directories:  
+This script produces 6 output files in the user-specified output directory, plus three sub-directories:  
 
   - **3 sub-directories** comprise outputs of MAKEBLASTDB and FIMO:  
   
@@ -609,7 +609,7 @@ This script produces 5 output files in the user-specified output directory, plus
     - one directory comprises BLASTN alignment database (alignment_databse); this directory contains 6 subsidiary files created by MAKEBLASTDB operation on user-supplied fasta file containing reference sequence(s) (\*.nin, \*.nhr, \*.nog, \*.nsd, \*.nsg, \*.nsi)  
  <br clear="all" />  
  
-  - **5 output files** in the user-specified output directory; these include:  
+  - **6 output files** in the user-specified output directory; these include:  
   
   1. **fasta.fa**  
         (collection of fasta entries representing top 5 most abundant sequences assigned to a single sample ID)
@@ -621,8 +621,11 @@ This script produces 5 output files in the user-specified output directory, plus
         
   4. **collated_TFBS.txt**  
         (*key output*; output of script operation on FIMO-generated .tsv files in fimo\_out and fimo\_out\_ref)  
+	
+  5. **collated_TFBS.xlsx**  
+        (*key output*; Excel file containing 8 worksheets that catalog sample alleles and their TFBSs (including lost-regained/lost-gained interpretations)    
         
-  5. **script_metrics.txt**  
+  6. **script_metrics.txt**  
         (summary/analysis of script operation metrics \[metadata\])
 
        Directory structure under an output directory specified as 'CollatedMotifs', for example,
@@ -637,7 +640,8 @@ This script produces 5 output files in the user-specified output directory, plus
                                         `----------*.nsg
                                         `----------*.nsi
                           `-----blastn_alignments.txt
-                          `-----collated_TFBS.txt
+                          `-----collated_TFBS.txt  
+	                      `-----collated_TFBS.xlsx  
                           `-----fasta.fa
                           `-----/fimo_out
                                         `----------cisml.xml
@@ -655,8 +659,8 @@ This script produces 5 output files in the user-specified output directory, plus
                           `-----script_metrics.txt
 
 ## <span style="color:darkturquoise">Visual summary of key script operations</span>
-In short, sequencing data in a sample-specific **fastq file** (*e.g.*, below), are converted to user-interpretable allele definitions annotated with 'new' and 'lost' TFBS relative to a reference sequence (**key output file**, below), for 100s to 1000s of samples.    
-  
+In short, sequencing data in a sample-specific **fastq file** (*e.g.*, below), are converted to user-interpretable allele definitions annotated with 'new' and 'lost' TFBS relative to a reference sequence (**key output file**, below), for 100s to 1000s of samples.  
+	
 <img src="CollatedMotifs_img/fastq_example.png" align="left" width="700">
 <br clear="all" />  
 *example*  
@@ -664,9 +668,13 @@ In short, sequencing data in a sample-specific **fastq file** (*e.g.*, below), a
 ------
 #### Key output files:  
 ##### collated_TFBS.txt 
-Samples are reported with sequence alignments to document alleles, along with 'new' and 'lost' TFBS relative to a reference sequence. 
+Samples are reported with sequence alignments to document alleles, along with 'new' and 'lost' TFBS relative to a reference sequence.  
+<br clear="all" /> 
 <img src="CollatedMotifs_img/Example_CollatedMotifs_output.png" align="left" width="800">
-<br clear="all" />
+<br clear="all" />  
+
+##### collated_TFBS.xlsx 
+Excel file with up to 8 worksheets that catalog TFBSs in sample alleles.   
 
 ## <span style="color:darkturquoise">Status</span>
 Project is:  _finished_, _open for contributions_
