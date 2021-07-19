@@ -1533,7 +1533,7 @@ dict_allele_TFBS_synopsis_allele_ranks = {}
 for sample in dict_allele_TFBS_synopsis:
     index_frequency_list = []
     for index, allele in enumerate(dict_allele_TFBS_synopsis.get(sample)):
-        index_frequency_list.append((float(allele.split('_')[5].split(':')[1]), allele.split('_')[5], allele, index))
+        index_frequency_list.append((float(allele.split('_')[6].split(':')[1]), allele.split('_')[6], allele, index))
         index_frequency_list_sorted = sorted(index_frequency_list, reverse=True)
     dict_allele_TFBS_synopsis_allele_ranks[sample] = index_frequency_list_sorted
     
