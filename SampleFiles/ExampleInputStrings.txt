@@ -9,3 +9,4 @@ User-entered variables:
     fimo_motifs_path: /Users/kirkehmsen/Meme/motif_databases/JASPAR/JASPAR_CORE_2016_vertebrates.meme
     fasta_get_markov_path: /Users/kirkehmsen/Meme/meme-5.0.1/src/fasta-get-markov
     markov_background_file: /Users/kirkehmsen/Desktop/hg38.fa
+    TF_of_interest: NR3C1
