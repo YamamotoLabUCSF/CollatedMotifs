@@ -40,3 +40,7 @@ fasta_get_markov_path: ***user-defined (system-specific)***
 
 markov_background_file: SampleTestFiles/FKBP5_RefSeq-NG_012645.fa
 -----------------------------------------------------------------
+
+TF_of_interest: NR3C1
+---------------------
+
