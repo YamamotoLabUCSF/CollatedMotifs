@@ -1,23 +1,21 @@
 #!/usr/local/bin/anaconda3/bin/python3
 # Note: edit shebang line above as appropriate for your system
 # AUTH: Kirk Ehmsen
-# FILE: CollatedMotifs-with_user-set_pval.py
-# DATE: 09-04-2018/8-04-2019
+# FILE: CollatedMotifs.py
+# DATE: 09-04-2018/8-04-2019 & 3-02-2021/6-26-2021
 # DESC: This script accepts text to standard input, and returns TFBS motifs for samples
 # from a demultiplexed NGS fastq dataset.  Provided with a reference sequence, the script returns TFBS motifs
 # collated as 'new' or 'lost' relative to the reference sequence.
-# CollatedMotifs-with_user-set_pval.py is a variant of CollatedMotifs.py, with an 11th input option
-# to specify the p-value threshold delivered to FIMO (CollatedMotifs.py default is 0.0001, 1e-4)
-# USAGE: ./CollatedMotifs-with_user-set_pval.py or python3 CollatedMotifs-with_user-set_pval.py
+# USAGE: ./CollatedMotifs.py or python3 CollatedMotifs.py
 # REPO: https://github.com/YamamotoLabUCSF/CollatedMotifs
 
 #############################################################################
 # Background notes:
-# =================================================
-# This is CollatedMotifs-with_user-set_pval.py v1.0
-# =================================================
-# https://github.com/YamamotoLabUCSF/CollatedMotifs
-# v1.0/Committed 8-04-2019
+# =======================================================================================
+# This is CollatedMotifs.py v1.1, , with user-specification of p-value threshold for FIMO
+# =======================================================================================
+# https://github.com/YamamotoLabUCSF/CollatedMotifs_with_user-set_pval
+# v1.1/Committed 7-01-2021
 # ----------------------------------------------
 # For usage details, please refer to README file at GitHub location and to the following manuscript:
 #   Ehmsen, Knuesel, Asahina, Aridomi, Yamamoto (2021)
@@ -51,7 +49,7 @@
 
 # Input notes:
 # ==============================================
-# You will be prompted for the following user-specific information (11 items):
+# You will be prompted for the following user-specific information (12 items--11 required, 1 optional):
 #      ** required (4 directory paths):
 #         * where should output files go?                     path to output directory for output files
 #         * where are input files found?                      path to single directory containing
@@ -82,17 +80,24 @@
 #                                                                     reads
 #           * what are the TFBS motif(s)                        path to single text file, containing
 #             for which you will search,                          position frequency matrix(ces) for TFs
-#             and for which you will draw comparisons             
+#             and for which you will draw comparisons
 #             for presence/absence between sequences?
 #           * what DNA sequence(s) will you use as a basis      path to single text/fasta file, containing
 #             for Markov background estimation, to be used        DNA sequence(s) from which a Markov background
 #             by FIMO                                             file will be generated for use by FIMO
-#         1 string variable
-#           * what is the user-specified p-value threshold?
+#           * what p-value will you provide to FIMO, as         string supplied to FIMO as p-value threshold,
+#             a threshold for reported sequence matches           such as '5e-3' for 5x10^-3
+#             to TF positional frequency matrices?
+#
+#      ** optional:
+#           * name of transcription factor (TF) of interest,    single string with TF name
+#             selected from standardized Entrez gene name
+#             options available in the positional weight
+#             matrix file you provide
 
 # Output notes:
 # ==============================================
-# This script produces 5 output files in the user-specified output directory, plus three directories:
+# This script produces 6 output files in the user-specified output directory, plus three directories:
 # two directories and subsidiary files created by FIMO (fimo_out and fimo_out_ref) and one directory
 # and subsidiary files created by MAKEBLASTDB (alignment_database).
 # CollatedMotifs.py output files include: 
@@ -100,7 +105,10 @@
 #	  2. blastn_alignments.txt (output of BLASTN operation on fasta.fa)
 #     3. markov_background.txt (output of FASTA-GET-MARKOV operation on user-supplied fasta reference file)
 #     4. collated_TFBS.txt (output of script operation on FIMO-generated .tsv files in fimo_out and fimo_out_ref)
-#     5. script_metrics.txt (summary/analysis of script operation metrics [metadata])
+#     5. collated_TFBS.xlsx (output of script operation on FIMO-generated data, compiling TFBS lost/gained in
+#        sample alleles relative to reference sequence; includes special focus on TFBS for TF of interest,
+#        if optional 'TF of interest' is provided during user input)
+#     6. script_metrics.txt (summary/analysis of script operation metrics [metadata])
 #
 #           Directory structure under an output directory specified as 'CollatedMotifs', for example,
 #           would contain the following subdirectories and files following CollatedMotifs.py operations:
@@ -115,6 +123,7 @@
 #                                        `----------*.nsi
 #                          `-----blastn_alignments.txt
 #                          `-----collated_TFBS.txt
+#                          `-----collated_TFBS.xlsx
 #                          `-----fasta.fa
 #                          `-----/fimo_out
 #                                        `----------cisml.xml
@@ -212,6 +221,9 @@ from pathlib import Path
 import locale
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
+# pandas for panel data
+import pandas as pd
+
 # start time
 initialTime = datetime.now()
 
@@ -229,13 +241,15 @@ def prompts():
     global fimo_motifs_path
     global fasta_get_markov_path
     global markov_background_file
+    global pval_threshold
+    global TF_of_interest
     # 1-Specify output directory.
     print(r"""
     ---------------------------------------------
     Location of OUTPUT DIRECTORY for output files
     ---------------------------------------------
     
-    This script produces 5 output files in the user-specified output directory, plus three directories:
+    This script produces 6 output files in the user-specified output directory, plus three directories:
     two directories and subsidiary files created by FIMO (fimo_out and fimo_out_ref) and one directory
     and subsidiary files created by MAKEBLASTDB (alignment_database).
     
@@ -252,7 +266,10 @@ def prompts():
         4. collated_TFBS.txt
             (output of script operation on FIMO-generated .tsv files in fimo_out and fimo_out_ref)
             
-        5. script_metrics.txt (summary/analysis of script operation metrics [metadata])
+        5. collated_TFBS.xlsx
+            (output of script interpretation of lost and gained TFBS, detailed for inferred alleles in spreadsheet)
+            
+        6. script_metrics.txt (summary/analysis of script operation metrics [metadata])
   
             Note: 
             * These files do not exist before the script is run. The files are made by the script.
@@ -403,8 +420,8 @@ def prompts():
     
     When you're done entering the location of the reference sequence, press Enter."""+'\n')
     markov_background_file = input(r"""    -----> Path to background reference file:  """)
-    #11-Specify user-preferred p-value threshold (FIMO)
-    print(r"""
+    # 11-Specify p-value cutoff for FIMO operations.
+    print(r"""  
     ----------------------------------------------------------------------------------------
     P-VALUE THRESHOLD to be used by FIMO in identification & reporting of TFBS motif matches
     ----------------------------------------------------------------------------------------
@@ -417,13 +434,33 @@ def prompts():
     a threshold of p-value = 0.001 (1e-4) in its default; in this script ('with pval threshold setting'), specify
     your choice of threshold.
 
-    Input the threshold setting in the scientific notation format based on 1e (10 raised to a specified power), such as,
-    '1e-3' for 10^-3 (0.001), or '5e-3' for 5x10^-3 (0.005). Do not include quotes flanking your text, or spaces
-    between the characters.
+    Input the threshold setting in the scientific notation format based on 1e (10 raised to a specified power),
+    such as, '1e-3' for 10^-3 (0.001), or '5e-3' for 5x10^-3 (0.005). Do not include quotes flanking your text, or
+    spaces between the characters.
     
     When you're done entering the customized p-value threshold, press Enter."""+'\n')
-    pval_threshold = input(r"""    -----> Customized p-value threshold setting:  """)
+    # 12-Specify transcription factor (TF) of interest, for which to search for lost TFBS occurrences in alleles.
+    print(r"""
+    ------------------------------------------------
+    TRANSCRIPTION FACTOR (TF) of interest (optional)
+    ------------------------------------------------
 
+    This script collates lost and gained TFBS for sample-associated allele(s) relative to a reference sequence;
+    if detailed analysis of alleles that have lost TFBS matches for a specific transcription factor (TF) are
+    desired,the identity of an individual TF of interest can be provided (optional).
+
+    If you would like the script to further analyze alleles for TFBS matches to a specific TF, please indicate the
+    TF here.  Otherwise, press Enter. 
+    
+    Important: Use only the standardized Entrez gene name for the TF of interest (such as NR3C1), rather than the
+    matrix model stable ID (for example, MA0113 for NR3C1) or stable ID with version number (for example, MA0113.3
+    for NR3C1).
+
+    Example: if you are interested in losses of TFBS for the TF NR3C1, you would type 'NR3C1'
+    and press Enter."""+'\n')
+    TF_of_interest = input(r"""    -----> Transcription Factor (TF) of interest:  """)
+
+    
 # Define 'convert_bytes' and 'path_size' functions to be used in data collection for script_metrics.txt        
 def convert_bytes(num):
     """
@@ -467,11 +504,11 @@ nt_dict = {'A':'T', 'T':'A', 'G':'C', 'C':'G', 'N':'N', '-':'-'}
             
 # Welcome/orient to script
 print("""
-    ==============================================
-    CollatedMotifs-with_user-set_pval.py v1.0
-    ==============================================
-    https://github.com/YamamotoLabUCSF/CollatedMotifs
-    Committed 8-04-2019
+    =============================================================================
+    CollatedMotifs.py v1.1, with user-specification of p-value threshold for FIMO
+    =============================================================================
+    https://github.com/YamamotoLabUCSF/CollatedMotifs_with_user-set_pval
+    Committed 7-01-2021
     ----------------------------------------------
     This script accepts text to standard input, and returns a comparison of matches to
     transcription factor binding site (TFBS) motifs between a reference sequence and sample sequence(s).
@@ -506,6 +543,9 @@ print("""
                    * fimo
                    * fasta-get-markov
             * single string as prefix to assign to 6 files of alignment database
+            * single string indicating p-value threshold for FIMO TFBS match calls
+            * single string indicating transcription factor (TF) of interest (optional)
+              (use standardized Entrez TF name as present in positional weight matrix file)
 
            You can expect the following directories and files in an output directory you specify:
            
@@ -518,6 +558,7 @@ print("""
                                         `----------*.nsi
                           `-----blastn_alignments.txt
                           `-----collated_TFBS.txt
+                          `-----collated_TFBS.xlsx
                           `-----fasta.fa
                           `-----/fimo_out
                                         `----------cisml.xml
@@ -560,7 +601,7 @@ elif user_input == 'List':
     User-specified input (list format)
     ----------------------------------
     
-    Please paste a single list of input values directly at the command line prompt, specifying the following 10 values.
+    Please paste a single list of input values directly at the command line prompt, specifying the following 11 (or 12) values.
     Press 'Enter' twice to complete.
     
     1-Location of OUTPUT DIRECTORY for output files
@@ -573,7 +614,8 @@ elif user_input == 'List':
     8-Location of POSITION FREQUENCY MATRIX FILE
     9-Location of FASTA-GET-MARKOV EXECUTABLE
     10-Location of MARKOV BACKGROUND FILE
-    11-P-VALUE THRESHOLD to be used by FIMO in identification & reporting of TFBS motif matches
+    11-P-VALUE THRESHOLD to be used by FIMO
+    12-Identify of TRANSCRIPTION FACTOR (TF) of interest (optional)
     
     """)
     input_list = []
@@ -583,7 +625,7 @@ elif user_input == 'List':
         if input_str.strip() == stopword:
             break
         else:
-            input_list.append(input_str)       
+            input_list.append(input_str)
     output_directory = input_list[0].strip()
     fastq_directory = input_list[1].strip()
     fasta_ref = input_list[2].strip()
@@ -595,7 +637,11 @@ elif user_input == 'List':
     fasta_get_markov_path = input_list[8].strip()
     markov_background_file = input_list[9].strip()
     pval_threshold = input_list[10].strip()
-
+    if len(input_list) == 12:
+        TF_of_interest = input_list[11].strip()
+    else:
+        TF_of_interest = ''
+        
 # Wait to create the directories and files until after input has been reviewed and accepted.
 # Convert fastq_directory input to operating system-appropriate filepath.
 output_directory = Path(str(output_directory))
@@ -765,6 +811,19 @@ Your MARKOV BACKGROUND FILE location was recorded as:
 """)
 print(markov_background_file)
 
+print("""
+Your P-VALUE THRESHOLD to be used by FIMO was recorded as:
+""")
+print(pval_threshold)
+
+print("""
+Your TF of interest was recorded as:
+""")
+if TF_of_interest != '':
+    print(TF_of_interest)
+else:
+    print('No TF of interest was provided')
+
 check = input("""
 Is this list accurately recorded? Type 'Y' or 'N': 
 """)
@@ -834,7 +893,8 @@ with open(filename, 'a') as f:
 "\n    fimo_motifs_path: "+ str(fimo_motifs_path) +
 "\n    fasta_get_markov_path: "+ str(fasta_get_markov_path) +
 "\n    markov_background_file: "+ str(markov_background_file) +
-"\n    pval_threshold: "+ str(pval_threshold) +
+"\n    pval_threshold: "+ pval_threshold +
+"\n    TF_of_interest: "+ TF_of_interest +
 """\n\nfastq file information:
     Illumina sequencing run ID(s): """+ str(runIDlist).strip('[]').replace("'","") +
 "\n    Number of fastq files processed: "+ str(len(myFastqFilenames)) +
@@ -905,10 +965,14 @@ startTime_readcount = datetime.now()
 # Populate fasta files for fasta.fa, in preparation for fimo analysis      
 query_input = Path(str(output_directory)+'/'+processdate+'_fasta.fa')
 
+# define Nextera adaptor sequence, in preparation to trim read 3' ends if necessary
+adaptor_str = 'CTGTCTCTTATACACATCT'
+adaptor_str_rev = 'AGATGTGTATAAGAGACAG'
+
 # Merge R1 and R2 reads, if present, as single sequence
 R1_file_list = [sourcefile for sourcefile in myFastqFilenames if bool(re.split('_',os.path.basename(sourcefile))[3] == 'R1')]
-R2_file_list = [sourcefile for sourcefile in myFastqFilenames if bool(re.split('_',os.path.basename(sourcefile))[3] == 'R2')]
-      
+R2_file_list = [sourcefile for sourcefile in myFastqFilenames if bool(re.split('_',os.path.basename(sourcefile))[3] == 'R2')]  
+
 # R1, R2 cluster mapping
 processed_files_list = []
 R1_R2_map_list = []
@@ -928,7 +992,7 @@ for sourcefile in myFastqFilenames:
                 if sourcefile2 not in processed_files_list:
                     processed_files_list.append(sourcefile2)
         R1_R2_map_list.append((R1, R2))
-
+        
 # Make fasta file of read entries, direct top read count output and annotation to fasta.fa   
 for file_pair in R1_R2_map_list:
     R1_file = file_pair[0]
@@ -947,8 +1011,9 @@ for file_pair in R1_R2_map_list:
     elif Path(R1_file).suffix == ".fastq":
         with open(R1_file, 'r') as f:
             lines_R1 = f.readlines()    
-    for x in range(0,len(lines_R1),4): 
-        cluster_sequence_R1_dict[lines_R1[x].split(':')[5]+':'+lines_R1[x].split(':')[6].split(' ')[0]] = lines_R1[x+1].strip('\n')
+    for x in range(0,len(lines_R1),4):
+        # trim adaptor sequence and up to 3' end of read from R1 sequence, if adaptor sequence found
+        cluster_sequence_R1_dict[lines_R1[x].split(':')[5]+':'+lines_R1[x].split(':')[6].split(' ')[0]] = lines_R1[x+1].strip('\n')[:lines_R1[x+1].strip('\n').index(adaptor_str)] if adaptor_str in lines_R1[x+1].strip('\n') else lines_R1[x+1].strip('\n') 
     #cluster_IDs_list_R1 = [x.split(':')[5]+':'+x.split(':')[6].split(' ')[0] for x in lines_R1[0::4]]
     if Path(R2_file).suffix == ".gz":
         with gzip.open(R2_file, "rt") as f:
@@ -956,8 +1021,9 @@ for file_pair in R1_R2_map_list:
     elif Path(R2_file).suffix == ".fastq":
         with open(R2_file, 'r') as f:
             lines_R2 = f.readlines()
-    for x in range(0,len(lines_R2),4): 
-        cluster_sequence_R2_dict[lines_R2[x].split(':')[5]+':'+lines_R2[x].split(':')[6].split(' ')[0]] = lines_R2[x+1].strip('\n')
+    for x in range(0,len(lines_R2),4):
+        # trim adaptor sequence and up to 3' end of read from R2 sequence, if adaptor sequence found
+        cluster_sequence_R2_dict[lines_R2[x].split(':')[5]+':'+lines_R2[x].split(':')[6].split(' ')[0]] = lines_R2[x+1].strip('\n')[:lines_R2[x+1].strip('\n').index(adaptor_str)] if adaptor_str in lines_R2[x+1].strip('\n') else lines_R2[x+1].strip('\n') 
     #cluster_IDs_list_R2 = [x.split(':')[5]+':'+x.split(':')[6].split(' ')[0] for x in lines_R2[0::4]]
     for cluster in cluster_sequence_R2_dict:
         cluster_sequence_R2_revcomp_dict[cluster] = ''.join(reversed(''.join(nt_dict.get(nt) for nt in cluster_sequence_R2_dict.get(cluster))))
@@ -969,22 +1035,29 @@ for file_pair in R1_R2_map_list:
                 cluster_merged_R1_R2revcomp_dict2[cluster] = merge1(cluster_sequence_R1_dict.get(cluster), cluster_sequence_R2_revcomp_dict.get(cluster))
     for cluster in cluster_merged_R1_R2revcomp_dict:
         merged_read_list.append(cluster_merged_R1_R2revcomp_dict.get(cluster))
+    # create dictionary (counter) relating unique read sequence to its # of occurrences
     counter=Counter(merged_read_list)
     modified_read_list_top5 = []
-    for i in counter.most_common(5):
+    for index, i in enumerate(counter.most_common(5)):
         filtered1 = sum([x for x in counter.values() if x/(sum(counter.values())) > 0.01])
         filtered10 = sum([x for x in counter.values() if x/(sum(counter.values())) > 0.1])
         raw_freq = round((100*i[1]/sum(counter.values())),2)
-        modified_read_list_top5.append([i[0], '['+str(i[1])+'/'+str(sum(counter.values()))+']', raw_freq, int(stats.percentileofscore([i for i in counter.values()], i[1], 'rank')), round((100*i[1]/sum([i[1] for i in counter.most_common(5)])),2), round((100*i[1]/filtered1),2) if filtered1 > 0 and raw_freq >= 1 else 'None', round((100*i[1]/filtered10),2) if filtered10 > 0 and raw_freq >= 10 else 'None'])
+        modified_read_list_top5.append([i[0], '['+str(i[1])+'/'+str(sum(counter.values()))+']', 'rank'+str(index+1), raw_freq, int(stats.percentileofscore([i for i in counter.values()], i[1], 'rank')), round((100*i[1]/sum([i[1] for i in counter.most_common(5)])),2), round((100*i[1]/filtered1),2) if filtered1 > 0 and raw_freq >= 1 else 'None', round((100*i[1]/filtered10),2) if filtered10 > 0 and raw_freq >= 10 else 'None'])
     with open(str(query_input), 'a+') as file:
         for i in modified_read_list_top5:
-              file.write('>'+fastaname[0]+'_'+'R1+R2'+'_'+str(i[1])+'_%totalreads:'+str(i[2])+'_percentile:'+str(i[3])+'_%top5reads:'+str(i[4])+'_%readsfilteredfor1%:'+str(i[5])+'_%readsfilteredfor10%:'+str(i[6])+'\n'+i[0]+'\n')        
-
+              file.write('>'+fastaname[0]+'_'+'R1+R2'+'_'+str(i[1])+'_'+i[2]+'_%totalreads:'+str(i[3])+'_percentile:'+str(i[4])+'_%top5reads:'+str(i[5])+'_%readsfilteredfor1%:'+str(i[6])+'_%readsfilteredfor10%:'+str(i[7])+'\n'+i[0]+'\n')
+                
 # Log read count time duration      
-readcountDuration = readcountDuration = str(datetime.now()- startTime_readcount).split(':')[0]+' hr|'+str(datetime.now() - startTime_readcount).split(':')[1]+' min|'+str(datetime.now() - startTime_readcount).split(':')[2].split('.')[0]+' sec|'+str(datetime.now() - startTime_readcount).split(':')[2].split('.')[1]+' microsec'
+readcountDuration = str(datetime.now()- startTime_readcount).split(':')[0]+' hr|'+str(datetime.now() - startTime_readcount).split(':')[1]+' min|'+str(datetime.now() - startTime_readcount).split(':')[2].split('.')[0]+' sec|'+str(datetime.now() - startTime_readcount).split(':')[2].split('.')[1]+' microsec'
 
-# Start the clock on blastn alignments duration  
-startTime_alignments = datetime.now()       
+# Prepare alignments
+print("""
+Script is now aligning the top 5 unique read sequences for each fastq file to the reference sequence (BLASTN); the output of this step is a blastn text file that will be created in the OUTPUT directory you indicated.
+
+""")
+
+# Start the clock on blastn alignments duration
+startTime_alignments = datetime.now()
 
 # Process alignments relative to reference sequence database, using blastn
 # Reference database
@@ -1001,11 +1074,11 @@ os.system(cmd_align)
 # Log alignment time duration
 alignmentsDuration = alignmentsDuration = str(datetime.now()- startTime_alignments).split(':')[0]+' hr|'+str(datetime.now()- startTime_alignments).split(':')[1]+' min|'+str(datetime.now()- startTime_alignments).split(':')[2].split('.')[0]+' sec|'+str(datetime.now()- startTime_alignments).split(':')[2].split('.')[1]+' microsec'
 
-# Start the clock on allele definitions duration      
+# Start the clock on allele definitions duration
 startTime_alleles = datetime.now()
 
-# Impute genotypes from blastn_alignments.txt file      
-# Import blastn alignments output as a list of strings (each string corresponds to a query alignment)      
+# Infer genotypes from blastn_alignments.txt file
+# Import blastn alignments output as a list of strings (each string corresponds to a query alignment)
 alignments_list = []
 with open(str(query_output), 'r') as file:
     reader = file.read()
@@ -1023,15 +1096,6 @@ for i in alignments_list2:
     if re.search('No hits found', str(i)):
         no_hits_list.append(str(i).split('<Iteration_query-def>')[1].split('</Iteration_query-def>')[0])
 
-# Further subset 'No hits found' queries for R1 vs. R2      
-no_hits_R1_read_list = []
-no_hits_R2_read_list = []
-for i in no_hits_list:
-    if i.split('_')[1] == 'R1':
-        no_hits_R1_read_list.append(i.split('_')[0]+' '+i.split('_')[2]+' '+i.split('_')[3].split(':')[1]+'%')
-    elif i.split('_')[1] == 'R2':
-        no_hits_R2_read_list.append(i.split('_')[0]+' '+i.split('_')[2]+' '+i.split('_')[3].split(':')[1]+'%')
-
 # Record sample names having reads with no alignment hits      
 no_hits_samplename_list = []
 for i in no_hits_list:
@@ -1046,33 +1110,240 @@ for i in alignments_list2:
         alignments_list3.append([y.strip() for x in i for y in x.split('\n') if y.strip().startswith(('<Iteration_query-ID>', '<Iteration_query-def>', '<Hit_num>', '<Hit_id>', '<Hit_def>', '<Hsp_hit-from>', '<Hsp_hit-to>', '<Hsp_qseq>', '<Hsp_hseq>', '<Hsp_midline>'))])
     
 # Identify & subset reads with >1 alignment to sequences in reference database
-multiple_alignments_list = []
+# Some reads with >1 alignment will be recovered to 'reconstitute' hypothesized allele (if BLASTN has split the read into multiple 'hits' or 'high-scoring pairs' (hsp's) within the span of the user-provided reference sequence)
+
+# There are in principle at least 3 ways a read could potentially align to >1 position in reference database (1 & 2a,b below):
+# (1) same sequence span aligns to >1 different locus (disparate <Hit_id>'s)
+# [unlike in Genotypes.py, this scenario is not anticipated in CollatedMotifs.py, unless significant sequence overlap occurs in user-provided fasta file containing reference sequence(s)]
+# (2) one sequence span may be split into two (ore more) different alignment matches, because of intervening gap(s) or insertion(s) that exceed ~60 bp (an apparent BLASTN gap limit)
+#    (a) if the two (or more) 'split matches' align to the same <Hit_id>, but to different coordinates of that <Hit_id>, they will be presented by BLASTN as belonging to the same <Hit_num>, but to different <Hsp_num> (Hsp=high scoring pair)
+#    (b) if the two (or more) 'split matches' span different <Hit_id>'s (essentially different 'chunks' of sequence with unique names, as organized within the alignment database), they will be presented by BLASTN as belonging to different <Hit_num>
+# These observations suggest that it is important to distinguish a read with alignment to >1 sequence as either one with poor resolution among >1 reference sequences (if >1 reference sequence is provided), vs. one that harbors sizeable deletions or insertions relative to the reference sequence
+# CollatedMotifs.py assumes continuity of 2 or more hsp's if they are assigned to the same user-provided reference sequence,
+# and therefore attempts to reconstitute hypothesized alleles that span multiple non-overlapping hsp's (but does not attempt to reconstitute across multiple hits or for ambiguous reconstructions from overlapping hsp's)
+
+# Organize reads with multiple hit IDs
+# These reads are deprecated (not further analyzed)
+multiple_alignments_hits_list = []
 for i in alignments_list3:
     if len(re.findall('<Hit_num>', str(i))) > 1:
-        multiple_alignments_list.append(i)
+        multiple_alignments_hits_list.append(i)
 
-# Identify read IDs with >1 alignment to sequences in reference database
-multiple_alignments_readID_list = []
-for i in multiple_alignments_list:
-    multiple_alignments_readID_list.append(i[1].split('>')[1].split('<')[0])
-
-# Record sample names having reads with >1 alignment to sequences in reference database
+# Prepare dictionary linking sample names to their reads having >1 alignment to sequences in reference database    
 multiple_alignments_samplename_list = []
-for i in multiple_alignments_readID_list:
-    samplename = i.split('_')[0]
-    if samplename not in multiple_alignments_samplename_list:
-        multiple_alignments_samplename_list.append(samplename)
-
-# Prepare dictionary linking sample names to their reads having >1 alignment to sequences in reference database      
+for i in multiple_alignments_hits_list:
+    multiple_alignments_samplename_list.append(i[1].split('>')[1].split('_')[0])
+    
 multiple_alignments_dict = {}
 for i in multiple_alignments_samplename_list:
-    multiple_alignments_dict ["{0}".format(i)] = tuple(x for x in multiple_alignments_list if bool(re.search(i, x[1])))
+    multiple_alignments_dict ["{0}".format(i)] = tuple(x for x in multiple_alignments_hits_list if bool(re.search(i, x[1])))
 
-# Prepare alignment_list4 for reads with exclusively 1 alignment hit in reference database
+# Organize reads with single hit, but multiple associated hsp IDs
+# These reads will be processed separately to 'reconstitute' potential alleles, with high-scoring alignment pairs matched to the reference sequence, but split into separate matches due to intervening non-aligning span between the alignment matches
+multiple_alignments_hsp_list = []
+for i in alignments_list3:
+    if len(re.findall('<Hit_num>', str(i))) > 1:
+        pass
+    elif len(re.findall('<Hsp_hit-from>', str(i))) > 1:
+        multiple_alignments_hsp_list.append(i)
+        
+# filter for multiple hsp's that can be reasonably reconstructed (i.e., >1 hsp's that do not overlap. Overlapping hsp's cannot readily be reconstructed and alleles with overlapping hsp's will be deprecated from analysis)
+alleles_with_multiple_hsps_that_can_be_reconstructed_list = []
+for i in alignments_list3:
+    count = 0
+    for x in i:
+        if re.search('<Hsp_hit-from>', x):
+            count = count+1
+    if count > 1:
+        overlapping_hsp = False
+        index_split_list = []
+        hsp_list = []
+        hsp_to_from_list = []
+        for index, x in enumerate(i):
+            if re.search('<Hsp_hit-from>', x):
+                index_split_list.append(index)
+        for index, y in enumerate(index_split_list):
+            hsp_list.append(i[y:y+(index+1)*5])
+        hsp_to_from_list_chunked = []
+        for index, w in enumerate(range(0,len(hsp_list))):
+            hsp_to_from_list_chunked.append(hsp_list[index])
+        for index, hsp in enumerate(hsp_list):
+            range_to_check = range(int(hsp[0].split('>')[1].split('<')[0]),int(hsp[1].split('>')[1].split('<')[0]))
+            # ranges of other hsp's in hsp_list
+            other_hsps_list = hsp_list.copy()
+            del other_hsps_list[index]
+            for other_hsp in other_hsps_list:
+                other_hsp_range = range(int(other_hsp[0].split('>')[1].split('<')[0]),int(other_hsp[1].split('>')[1].split('<')[0]))
+                if set(range_to_check).intersection(other_hsp_range):
+                    overlapping_hsp = True
+                else:
+                    pass
+        if overlapping_hsp is False:
+            alleles_with_multiple_hsps_that_can_be_reconstructed_list.append(i)
+
+# attempt to reconstruct long-ranging alignment for alleles with >1 BLASTN hsp that can be reasonably reconstituted
+reconstructed_alleles_with_multiple_hsps_list = []
+
+with open(mydb_input) as file:
+    ref_candidates = file.readlines()
+ref_candidates2 = [i.strip('>\n') for i in ref_candidates]
+iterator = iter(ref_candidates2)
+ref_candidates3 = list(zip(iterator,iterator))
+
+for allele in alleles_with_multiple_hsps_that_can_be_reconstructed_list:
+    # get allele as it appears intact in fasta file
+    with open(query_input) as file:
+        for index, line in enumerate(file):
+            if line.strip('\n') == '>'+allele[1].split('>')[1].split('<')[0]:
+                allele_fasta = next(file).strip()
+    allele_reconstruction_list = [i for i in allele[0:5]]
+    allele_reconstruction_temp_list = []
+    allele_ref = allele[3].split('>')[1].split('<')[0]
+    for ref in ref_candidates3:
+        if ref[0] == allele_ref:
+            allele_ref_sequence = ref[1]
+        else:
+            pass
+    # collect info re: hsp match spans and alignments to reference
+    for hsp in range(0,int(((len(allele)-5)/5))):
+        hsp_from = int(allele[5+hsp*5].split('>')[1].split('<')[0])
+        hsp_to = int(allele[6+hsp*5].split('>')[1].split('<')[0])
+        hsp_qseq = allele[7+hsp*5].split('>')[1].split('<')[0]
+        hsp_hseq = allele[8+hsp*5].split('>')[1].split('<')[0]
+        hsp_midline = allele[9+hsp*5].split('>')[1].split('<')[0]
+        
+        if hsp_from == 1:
+            allele_reconstruction_temp_list.append((hsp_from, str(hsp_from)+':'+str(hsp_to), allele_ref_sequence[0:hsp_to], hsp_qseq, hsp_hseq, hsp_midline))
+        else:
+            allele_reconstruction_temp_list.append((hsp_from, str(hsp_from)+':'+str(hsp_to), allele_ref_sequence[hsp_from-1:hsp_to], hsp_qseq, hsp_hseq, hsp_midline))
+
+    allele_span_list = []
+    reference_span_list = []
+    alignment_midline_list = []
+    # prepare to account for bp spans from allele read as represented in fasta file, which are represented in hsps
+    allele_fasta_span_bp_accounting_set = set()
+    allele_fasta_span_bp = range(1,len(allele_fasta)+1)
+    allele_fasta_spans_in_hsps = set()
+    # prepare to account for bp spans from reference as represented in reference file, which are represented in hsps
+    reference_span_bp_accounting_set = set()
+    reference_span_bp = range(1,len(allele_ref_sequence)+1)
+    reference_spans_in_hsps = set()
+    # assess hsp match positions relative to ref span, and re-order if needed based on relative order of start and stop positions of hsp alignment
+    for subregion in sorted(allele_reconstruction_temp_list):
+        reference_spans_in_hsps.update(set(range(int(subregion[1].split(':')[0]),int(subregion[1].split(':')[1]))))
+        match = re.search(subregion[3].replace('-',''), allele_fasta)
+        allele_fasta_spans_in_hsps.update(range(match.span()[0],match.span()[1]))
+        
+    for index, subregion in enumerate(sorted(allele_reconstruction_temp_list)):
+        # subregion[0] is start position of hsp alignment match in reference; subregion[1] is string form of hsp coordinate span (start:end) relative to reference
+        # subregion[2] is direct sequence span from reference sequence; subregion[3] is query from allele; subregion[4] is hit from reference; subregion[5] is midline
+        if index == 0:
+            if subregion[0] == 1:
+                allele_span_list.append(subregion[3])
+                reference_span_list.append(subregion[4])
+                alignment_midline_list.append(subregion[5])
+                reference_span_bp_accounting_set.update(range(1,int(subregion[1].split(':')[1])))
+                # check for coverage in allele as represented in fasta file
+                match = re.search(subregion[3].replace('-',''), allele_fasta)
+                allele_fasta_span_bp_accounting_set.update(range(match.span()[0],match.span()[1]))
+                
+            else:
+                allele_span_list.append(subregion[3])
+                reference_span_list.append(subregion[4])
+                alignment_midline_list.append(subregion[5])
+                reference_span_bp_accounting_set.update(range(int(subregion[1].split(':')[0]),int(subregion[1].split(':')[1])))
+                # check for coverage in allele as represented in fasta file
+                match = re.search(subregion[3].replace('-',''), allele_fasta)
+                allele_fasta_span_bp_accounting_set.update(range(match.span()[0],match.span()[1]))
+                #allele_span_list.append('-'*subregion[0])
+                #reference_span_list.append(allele_ref_sequence[0:subregion[0]])
+                #alignment_midline_list.append(' '*subregion[0])
+                #reference_span_bp_accounting_set.update(range(1,int(subregion[1].split(':')[1]))) 
+        elif len(sorted(allele_reconstruction_temp_list)) > index > 0:
+            test_span = range(int(sorted(allele_reconstruction_temp_list)[index-1][1].split(':')[1]), int(subregion[1].split(':')[0]))
+            
+            if reference_span_bp_accounting_set.intersection(test_span):
+                allele_span_list.append(subregion[3])
+                reference_span_list.append(subregion[4])
+                alignment_midline_list.append(subregion[5])
+                reference_span_bp_accounting_set.update(range(int(subregion[1].split(':')[0]),int(subregion[1].split(':')[1])))
+                match = re.search(subregion[3].replace('-',''), allele_fasta)
+                allele_fasta_span_bp_accounting_set.update(range(match.span()[0],match.span()[1]))
+            else:
+                match = re.search(subregion[3].replace('-',''), allele_fasta)
+                allele_fasta_span_bp_accounting_set.update(range(match.span()[0],match.span()[1]))
+                bases_in_fasta_allele_not_accounted_for_in_alignment = sorted(set(range(sorted(allele_fasta_span_bp_accounting_set)[0],sorted(allele_fasta_span_bp_accounting_set)[-1]))-allele_fasta_span_bp_accounting_set)
+                if len(bases_in_fasta_allele_not_accounted_for_in_alignment) > 0:
+                    bases_to_add = allele_fasta[bases_in_fasta_allele_not_accounted_for_in_alignment[0]:bases_in_fasta_allele_not_accounted_for_in_alignment[-1]+1]
+                    allele_fasta_span_bp_accounting_set.update(range(bases_in_fasta_allele_not_accounted_for_in_alignment[0],bases_in_fasta_allele_not_accounted_for_in_alignment[1]))
+                else:
+                    bases_to_add = ''
+                allele_span_list.append(bases_to_add)
+                allele_span_list.append('-'*(int(subregion[0])-int(sorted(allele_reconstruction_temp_list)[index-1][1].split(':')[1])-1-len(bases_to_add)))
+                reference_span_list.append(allele_ref_sequence[int(sorted(allele_reconstruction_temp_list)[index-1][1].split(':')[1]):int(subregion[0])-1])
+                alignment_midline_list.append(' '*(int(subregion[0])-int(sorted(allele_reconstruction_temp_list)[index-1][1].split(':')[1])-1))
+                reference_span_bp_accounting_set.update(range(int(subregion[1].split(':')[0]),int(subregion[1].split(':')[1])))
+                allele_span_list.append(subregion[3])
+                reference_span_list.append(subregion[4])
+                alignment_midline_list.append(subregion[5])
+                reference_span_bp_accounting_set.update(range(int(sorted(allele_reconstruction_temp_list)[index-1][1].split(':')[1])-1,int(subregion[1].split(':')[0])))
+
+    
+    # missing region of allele sequence as it appears in fasta
+    bases_in_fasta_allele_not_accounted_for_in_alignment = sorted(set(range(sorted(allele_fasta_span_bp_accounting_set)[0],sorted(allele_fasta_span_bp_accounting_set)[-1]))-allele_fasta_span_bp_accounting_set)
+    if len(bases_in_fasta_allele_not_accounted_for_in_alignment) > 0:   
+        bases_to_add = allele_fasta[bases_in_fasta_allele_not_accounted_for_in_alignment[0]:bases_in_fasta_allele_not_accounted_for_in_alignment[-1]+1]
+    else:
+        bases_to_add = ''
+        
+    reconstructed_hsp_from = str(int(sorted(list(reference_span_bp_accounting_set))[0])+1)
+    reconstructed_hsp_to = str(int(sorted(list(reference_span_bp_accounting_set))[-1])+1)
+    reconstructed_hsp_qseq =  ''.join(allele_span_list).strip('-')
+    reconstructed_hsp_hseq = ''.join(reference_span_list).strip('-')
+    reconstructed_hsp_midline = ''.join(alignment_midline_list)
+    
+    allele_reconstruction_list.append('<Hsp_hit-from>'+str(reconstructed_hsp_from)+'</Hsp_hit-from>')
+    allele_reconstruction_list.append('<Hsp_hit-to>'+str(reconstructed_hsp_to)+'</Hsp_hit-to>')
+    allele_reconstruction_list.append('<Hsp_qseq>'+reconstructed_hsp_qseq+'</Hsp_qseq>')
+    allele_reconstruction_list.append('<Hsp_hseq>'+reconstructed_hsp_hseq+'</Hsp_hseq>')
+    allele_reconstruction_list.append('<Hsp_midline>'+reconstructed_hsp_midline+'</Hsp_midline>')
+    
+    reconstructed_alleles_with_multiple_hsps_list.append(allele_reconstruction_list)  
+    
+    
+# Prepare alignment_list4 for reads with exclusively 1 alignment hit in reference database, or hsp's that can be reasonably reconstructed
 alignments_list4 = []
 for i in alignments_list3:
-    if i not in multiple_alignments_list:
+    if i not in multiple_alignments_hsp_list:
         alignments_list4.append(i)
+for i in reconstructed_alleles_with_multiple_hsps_list:
+        alignments_list4.append(i)
+
+# In script_metrics.txt, log samples and allele IDs identified as having (1) no hits in alignment database or (2) multiple hits in alignment database, as well as (3) samples and allele IDs having more than 1 high-scoring pair (hsp) that the script was unable to reconstruct toward an alignment.
+# Use print redirection to write to target file, in append mode (append to script_metrics.txt)
+filename = Path(str(output_path)+'/'+processdate+'_script_metrics.txt')
+with open(filename, 'a') as f:
+    print("\nRecord of ranked alleles deprecated from analysis output:", file = f)
+    print("\n    No hits identified by BLASTN in alignment database: ", file = f)
+    if len(no_hits_list) == 0:
+        print("        None", file = f)    
+    else:
+        for i in no_hits_list:
+            print("        "+i, file = f)
+    print("\n    Multiple hits identified by BLASTN in alignment database: ", file = f)
+    if len(multiple_alignments_hits_list) == 0:
+        print("        None", file = f) 
+    else:
+        for i in multiple_alignments_hits_list:
+            print("        "+i[1].split('>')[1].split('<')[0], file = f)
+    print("\n    >1 high-scoring pair (hsp) identified by BLASTN, but hsp's could not be reconstructed into a hypothesized allele: ", file = f)
+    if len(multiple_alignments_hsp_list) == 0:
+        print("        None", file = f) 
+    else:
+        for i in multiple_alignments_hsp_list:
+            print("        "+i[1].split('>')[1].split('<')[0], file = f) 
+    print("\n", file = f)
+f.close()
 
 # Among lists containing alignment data in alignments_list4, determine which queries (reads) correspond to the same sample; where querydef = i[1].split(">")[1].split("_[")[0], reads belonging to the same sample share identical querydef
 # Fasta deflines encode frequency metrics for reads, based on defline format:
@@ -1107,7 +1378,13 @@ alignmentoutput_dict2 = { k : v for k,v in alignmentoutput_dict.items() if v}
 # Log allele definitions time duration
 allele_definitionsDuration = allele_definitionsDuration = str(datetime.now() - startTime_alleles).split(':')[0]+' hr|'+str(datetime.now() - startTime_alleles).split(':')[1]+' min|'+str(datetime.now() - startTime_alleles).split(':')[2].split('.')[0]+' sec|'+str(datetime.now() - startTime_alleles).split(':')[2].split('.')[1]+' microsec'
 
-# Start the clock on FIMO operations duration      
+# FIMO operations: identify TFBS
+print("""
+Script is now using FIMO to identify TFBSs in reference(s) and allele(s).
+
+""")
+
+# Start the clock on FIMO operations duration
 startTime_fimo = datetime.now()
 
 # Identify matches to TFBS motifs in each reference sequence.
@@ -1200,26 +1477,22 @@ for line in allele_lines:
     if dict_allele_TFBS_sample_key in dict_allele_TFBS:
         if dict_allele_TFBS.get(dict_allele_TFBS_sample_key).get(dict_allele_TFBS_allele_key) is not None:
             dict_allele_TFBS.get(dict_allele_TFBS_sample_key).get(dict_allele_TFBS_allele_key).append(line.strip())
-
+        
 # Prepare synopsis dictionary with alleles as keys, and list of 3 sublists: gained, lost, all_sites      
 # Run comparison of 'all_sites' information relative to reference allele information.
 dict_allele_TFBS_synopsis = {}
 for allele in alignmentoutput_dict2:
     dict_allele_TFBS_synopsis[allele] = {}
-
+    
 for allele in alignmentoutput_dict2:
     for x in range(0, len(alignmentoutput_dict2.get(allele))):
-        dict_allele_TFBS_synopsis[allele].update({alignmentoutput_dict2.get(allele)[x][1].split(">")[1].split("<")[0]:{'gained':[],'lost':[],'all_sites':[], 'TFs':{}}})
-
-#for sample in dict_allele_TFBS_synopsis:
-#    for allele in dict_allele_TFBS_synopsis.get(sample):
-#        for motif in dict_allele_TFBS.get(sample).get(allele):
-#            dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites').append(motif.split('\t')[1]+' #('+motif.split('\t')[0]+'),'+motif.split('\t')[5]+','+motif.split('\t')[9]+','+motif.split('\t')[7])
-            
+        dict_allele_TFBS_synopsis[allele].update({alignmentoutput_dict2.get(allele)[x][1].split(">")[1].split("<")[0]:{'gained':[],'lost':[],'all_sites':[], 'TFs':{}, 'allele_sequence':[
+            alignmentoutput_dict2.get(allele)[x][7]]+[alignmentoutput_dict2.get(allele)[x][8]]+[alignmentoutput_dict2.get(allele)[x][9]]}})
+        
 for sample in dict_allele_TFBS_synopsis:
     for allele in dict_allele_TFBS_synopsis.get(sample):
         for motif in dict_allele_TFBS.get(sample).get(allele):
-            dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites').append(motif.split('\t')[1]+' ('+motif.split('\t')[0]+'),'+motif.split('\t')[5]+','+motif.split('\t')[9]+','+motif.split('\t')[7])
+            dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites').append(motif.split('\t')[1]+' ('+motif.split('\t')[0]+'),'+motif.split('\t')[5]+','+motif.split('\t')[9]+','+motif.split('\t')[7]+','+motif.split('\t')[3]+','+motif.split('\t')[4])
             if motif.split('\t')[0]+' ('+motif.split('\t')[1]+')' not in dict_allele_TFBS_synopsis.get(sample).get(allele).get('TFs'):
                 count = 1
                 dict_allele_TFBS_synopsis.get(sample).get(allele).get('TFs').update({motif.split('\t')[0]+' ('+motif.split('\t')[1]+')':count})
@@ -1232,7 +1505,7 @@ for sample in dict_allele_TFBS_synopsis:
 dict_ref_TFBS_synopsis = {}
 for ref in dict_ref_TFBS:
     dict_ref_TFBS_synopsis[ref] = {'all_sites':[], 'TFs':{}}
-
+    
 # Summarize TF counts in reference sequences      
 for ref in dict_ref_TFBS_synopsis:    
     for motif in dict_ref_TFBS.get(ref):
@@ -1242,12 +1515,12 @@ for ref in dict_ref_TFBS_synopsis:
         else:
             count = dict_ref_TFBS_synopsis.get(ref).get('TFs').get(motif.split('\t')[0]+' ('+motif.split('\t')[1]+')')+1
             dict_ref_TFBS_synopsis.get(ref).get('TFs').update({motif.split('\t')[1]+' ('+motif.split('\t')[0]+')':count})
-
+            
 # Catalog TFBSs in reference sequences, in format akin to 'all_sites' format in dict_allele_TFBS_synopsis          
 for ref in dict_ref_TFBS_synopsis:
     for motif in dict_ref_TFBS.get(ref):
-        dict_ref_TFBS_synopsis.get(ref).get('all_sites').append(motif.split('\t')[1]+' ('+motif.split('\t')[0]+'),'+motif.split('\t')[5]+','+motif.split('\t')[9]+','+motif.split('\t')[7])
-
+        dict_ref_TFBS_synopsis.get(ref).get('all_sites').append(motif.split('\t')[1]+' ('+motif.split('\t')[0]+'),'+motif.split('\t')[5]+','+motif.split('\t')[9]+','+motif.split('\t')[7]+','+motif.split('\t')[3]+','+motif.split('\t')[4])
+        
 # Run comparisons, populating into dict_allele_TFBS_synopsis
 ref_options = [ref for ref in dict_ref_TFBS]
 for sample in dict_allele_TFBS_synopsis:
@@ -1256,17 +1529,1399 @@ for sample in dict_allele_TFBS_synopsis:
         if re.search(ref, sample):
             sample_ref = ref
     for allele in dict_allele_TFBS_synopsis.get(sample):
+        # check only for motifs that overlap aligned region between allele and ref
+        for x in alignmentoutput_dict2.get(sample):
+            if x[1].split('>')[1].split('<')[0] == allele:
+                to_from_range = range(int(x[5].split('>')[1].split('<')[0]),int(x[6].split('>')[1].split('<')[0]))
+        dict_allele_TFBS_synopsis.get(sample).get(allele)['ref_coordinates_span'] = to_from_range
+        ref_spans_represented_in_allele_hsps_temp = []
+        # get hsp aligment spans relative to reference coordinates
+        for index, x in enumerate(alignments_list3):
+            if x[1].split('>')[1].split('<')[0] == allele:
+                for i in range(5, len(alignments_list3[index]), 5):
+                    ref_spans_represented_in_allele_hsps_temp.append(range(int(alignments_list3[index][i].split('>')[1].split('<')[0])+1, int(alignments_list3[index][i+1].split('>')[1].split('<')[0])))
+                    ref_spans_represented_in_allele_hsps = sorted(list(i) for i in ref_spans_represented_in_allele_hsps_temp)
+        dict_allele_TFBS_synopsis.get(sample).get(allele)['hsp_alignment_spans'] = ref_spans_represented_in_allele_hsps   
+        ref_TFBS_set_to_include_in_evaluation = []
+        for ref_motif in dict_ref_TFBS_synopsis.get(sample_ref).get('all_sites'):
+            ref_motif_range = range(int(ref_motif.split(',')[4]), int(ref_motif.split(',')[5]))
+            if set(to_from_range).intersection(ref_motif_range):
+                ref_TFBS_set_to_include_in_evaluation.append(ref_motif)  
         for motif in dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites'):
-            if motif in dict_ref_TFBS_synopsis.get(sample_ref).get('all_sites'):
+            # limit ref range
+            if motif.split(',')[:4] in [i.split(',')[:4] for i in ref_TFBS_set_to_include_in_evaluation]:
                 pass
             else:
                 dict_allele_TFBS_synopsis.get(sample).get(allele).get('gained').append(motif)
-        for motif in dict_ref_TFBS_synopsis.get(sample_ref).get('all_sites'):
-            if motif in dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites'):
+        for motif in ref_TFBS_set_to_include_in_evaluation:
+            if motif.split(',')[:4] in [i.split(',')[:4] for i in dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites')]:
                 pass
             else:
                 dict_allele_TFBS_synopsis.get(sample).get(allele).get('lost').append(motif)
+
+# Add allele ranks to allele names
+dict_allele_TFBS_synopsis_allele_ranks = {}
+
+for sample in dict_allele_TFBS_synopsis:
+    index_frequency_list = []
+    for index, allele in enumerate(dict_allele_TFBS_synopsis.get(sample)):
+        index_frequency_list.append((float(allele.split('_')[5].split(':')[1]), allele.split('_')[5], allele, index))
+        index_frequency_list_sorted = sorted(index_frequency_list, reverse=True)
+    dict_allele_TFBS_synopsis_allele_ranks[sample] = index_frequency_list_sorted
+    
+for sample in dict_allele_TFBS_synopsis:
+    for index, allele in enumerate(dict_allele_TFBS_synopsis.get(sample)):
+        for index, ranked_allele in enumerate(dict_allele_TFBS_synopsis_allele_ranks.get(sample)):
+            if allele == ranked_allele[2]:
+                allele_rank = index+1
+        dict_allele_TFBS_synopsis.get(sample).get(allele).update({'allele_rank': allele_rank}) 
+
+# TFBS interpretations
+print("""
+Script is now interpreting potential lost-regained TFBS pairs & lost-gained TFBS pairs.
+If TF of interest was provided, script will also further assess alleles with loss of TFBS for TF of interest.
+
+""")
+        
+# Take stock of gained and lost TFBS that positionally overlap in reference vs. allele.
+# Begin interpretive assessment of whether TFBS 'gained' for given TFs may in fact be 'regained' TFBS, in alleles where TFBS for the same TF has been lost
+# In other words, small local base changes that disrupt a TFBS for a given TF may nevertheless supply a distinct TFBS for the same TF,
+# amounting to, in principle, a 'reconstitution' or preservation of potential TFBS for TF
+# First, convert lost/gained TFBS for each allele (per sample) to dataframe, allele_TFBS_synopsis_df
+
+sample_list = [] 
+allele_count_list = []
+allele_list = []
+allele_sequence_list = []
+reference_sequence_list = []
+alignment_midline_list = []
+TF_list = []
+strand_list = []
+gained_TFBS_sequence_list = []
+lost_TFBS_sequence_list = []
+p_val_list = []
+lostvsgained_list = []
+allele_start_coordinate_list = []
+allele_stop_coordinate_list = []
+ref_start_coordinate_list = []
+ref_stop_coordinate_list = []
+
+for sample in dict_allele_TFBS_synopsis:
+    allele_count = 0
+    for allele in dict_allele_TFBS_synopsis.get(sample):
+        allele_count = allele_count+1
+        for TF_class in dict_allele_TFBS_synopsis.get(sample).get(allele):
+            if TF_class == 'lost':
+                # if allele alignment is to a subset of a longer user-provided reference span, coordinates
+                # must be converted to allele span coordinates (because coordinates in the 'lost' category are derived
+                # from reference sequence coordinates in dict_allele_TFBS_synopsis
+                if len(dict_allele_TFBS_synopsis.get(sample).get(allele).get('lost')) == 0:
+                    sample_list.append(sample)
+                    allele_count_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_rank'))
+                    allele_list.append(allele)
+                    allele_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[0].split('>')[1].split('<')[0].strip())
+                    reference_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[1].split('>')[1].split('<')[0].strip())
+                    alignment_midline_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[2].split('>')[1].split('<')[0].strip())   
+                    TF_list.append('n/a')
+                    strand_list.append('n/a')
+                    gained_TFBS_sequence_list.append('n/a')
+                    lost_TFBS_sequence_list.append('n/a')
+                    p_val_list.append('n/a')
+                    allele_start_coordinate_list.append('n/a')
+                    allele_stop_coordinate_list.append('n/a')
+                    ref_start_coordinate_list.append('n/a')
+                    ref_stop_coordinate_list.append('n/a')
+                    lostvsgained_list.append("No TFBS lost")
+                else:
+                    # retrieve allele's alignment span to reference sequence
+                    ref_span = [dict_allele_TFBS_synopsis.get(sample).get(allele).get('ref_coordinates_span')[0],dict_allele_TFBS_synopsis.get(sample).get(allele).get('ref_coordinates_span')[-1]]
+                    # retrieve allele's intact span
+                    allele_length = len(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[0].split('>')[1].split('<')[0].replace('-',''))
+                    # retrieve allele's alignment span(s) relative to reference sequence
+                    dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')
+                    # retrieve intervening span between allele alignment spans relative to reference sequence
+                    if len(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')) < 2:
+                        span = int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[0].count('-'))
+                    else:
+                        span = int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')[1][0])-int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')[0][-1])  
+                    for TF in dict_allele_TFBS_synopsis.get(sample).get(allele).get('lost'):
+                        sample_list.append(sample)
+                        allele_count_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_rank'))
+                        allele_list.append(allele)
+                        allele_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[0].split('>')[1].split('<')[0].strip())
+                        reference_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[1].split('>')[1].split('<')[0].strip())
+                        alignment_midline_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[2].split('>')[1].split('<')[0].strip())   
+                        TF_list.append(TF.split(',')[0])
+                        strand_list.append(TF.split(',')[1])
+                        gained_TFBS_sequence_list.append('n/a')
+                        lost_TFBS_sequence_list.append(TF.split(',')[2])                            
+                        p_val_list.append(TF.split(',')[3])
+                        allele_start_coordinate_list.append('n/a')
+                        allele_stop_coordinate_list.append('n/a')
+                        # make adjustments in recorded 'lost' TFBS coordinates, to reflect coordinates as defined in allele span rather than coordinates as defined in reference span
+                        if set(range(int(TF.split(',')[4]), int(TF.split(',')[5]))).intersection(range(int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')[0][0]),
+                                                                                      int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')[0][-1]+1))):
+                            ref_start_coordinate_list.append(int(TF.split(',')[4])-ref_span[0])
+                            ref_stop_coordinate_list.append(int(TF.split(',')[5])-ref_span[0])
+                        elif set(range(int(TF.split(',')[4]), int(TF.split(',')[5]))).intersection(range(int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')[0][1]+1),
+                                                                                      int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')[1][0]))):
+                            ref_start_coordinate_list.append(int(TF.split(',')[4])-ref_span[0])
+                            ref_stop_coordinate_list.append(int(TF.split(',')[5])-ref_span[0])
+                        elif set(range(int(TF.split(',')[4]), int(TF.split(',')[5]))).intersection(range(int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')[1][0]),
+                                                                                      int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')[1][-1]+1))):
+                            ref_start_coordinate_list.append(int(TF.split(',')[4])-ref_span[0])
+                            ref_stop_coordinate_list.append(int(TF.split(',')[5])-ref_span[0])                       
+                        lostvsgained_list.append('lost')
+            elif TF_class == 'gained':
+                if len(dict_allele_TFBS_synopsis.get(sample).get(allele).get('gained')) == 0:
+                    sample_list.append(sample)
+                    allele_count_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_rank'))
+                    allele_list.append(allele)
+                    allele_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[0].split('>')[1].split('<')[0].strip())
+                    reference_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[1].split('>')[1].split('<')[0].strip())
+                    alignment_midline_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[2].split('>')[1].split('<')[0].strip())
+                    TF_list.append('n/a')
+                    strand_list.append('n/a')
+                    gained_TFBS_sequence_list.append('n/a')
+                    lost_TFBS_sequence_list.append('n/a')
+                    p_val_list.append('n/a')
+                    allele_start_coordinate_list.append('n/a')
+                    allele_stop_coordinate_list.append('n/a')
+                    ref_start_coordinate_list.append('n/a')
+                    ref_stop_coordinate_list.append('n/a')
+                    lostvsgained_list.append("No TFBS gained")
+                else:
+                    # retrieve allele's alignment span to reference sequence
+                    ref_span = [dict_allele_TFBS_synopsis.get(sample).get(allele).get('ref_coordinates_span')[0],dict_allele_TFBS_synopsis.get(sample).get(allele).get('ref_coordinates_span')[-1]]
+                    # retrieve allele's intact span
+                    allele_length = len(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[0].split('>')[1].split('<')[0].replace('-',''))
+                    # retrieve allele's alignment span(s) relative to reference sequence
+                    dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')
+                    # retrieve intervening span between allele alignment spans relative to reference sequence
+                    if len(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')) < 2:
+                        span = int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[0].count('-'))
+                    else:
+                        span = int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')[1][0])-int(dict_allele_TFBS_synopsis.get(sample).get(allele).get('hsp_alignment_spans')[0][-1])   
+                    for TF in dict_allele_TFBS_synopsis.get(sample).get(allele).get('gained'):
+                        sample_list.append(sample)
+                        allele_count_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_rank'))
+                        allele_list.append(allele)
+                        allele_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[0].split('>')[1].split('<')[0].strip())
+                        reference_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[1].split('>')[1].split('<')[0].strip())
+                        alignment_midline_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[2].split('>')[1].split('<')[0].strip())
+                        TF_list.append(TF.split(',')[0])
+                        strand_list.append(TF.split(',')[1])
+                        gained_TFBS_sequence_list.append(TF.split(',')[2])
+                        lost_TFBS_sequence_list.append('n/a')                            
+                        p_val_list.append(TF.split(',')[3])
+                        allele_start_coordinate_list.append(TF.split(',')[4])
+                        allele_stop_coordinate_list.append(TF.split(',')[5]) 
+                        ref_start_coordinate_list.append('n/a')
+                        ref_stop_coordinate_list.append('n/a')
+                        lostvsgained_list.append('gained')           
+            
+# Prepare dataframe synopsis of samples and alleles, with individual rows detailing TFBS lost or gained 
+allele_TFBS_synopsis_df_columns = {"sample":sample_list, "allele rank":allele_count_list, "allele ID":allele_list, "alignment query\n(allele sequence)":allele_sequence_list,
+                                   "alignment midline":alignment_midline_list, "alignment hit\n(reference)":reference_sequence_list, "TF":TF_list,
+                                   "strand":strand_list, 
+                                   "Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'":lost_TFBS_sequence_list,
+                                   "Lost TFBS start coordinate (in reference)":ref_start_coordinate_list,
+                                   "Lost TFBS end coordinate (in reference)":ref_stop_coordinate_list,
+                                   "Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'":gained_TFBS_sequence_list, 
+                                   "Gained TFBS start coordinate (in allele)":allele_start_coordinate_list,
+                                   "Gained TFBS end coordinate (in allele)":allele_stop_coordinate_list, 
+                                   "p-val":p_val_list, "lost or gained in allele (relative to ref)?":lostvsgained_list}
+allele_TFBS_synopsis_df = pd.DataFrame(allele_TFBS_synopsis_df_columns)
+
+allele_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF',"strand","lost or gained in allele (relative to ref)?"],ascending=[True, True, True, True, False])
+
+# Add read counts and calculated frequencies to allele_TFBS_synopsis_df
+read_count_list = [i.split('_')[2].strip('[]').split('/')[0] for i in allele_TFBS_synopsis_df['allele ID'].to_list()]
+total_reads_list = [i.split('_')[2].strip('[]').split('/')[1] for i in allele_TFBS_synopsis_df['allele ID'].to_list()]
+pct_total_reads_list = [i.split('_')[4].split(':')[1] for i in allele_TFBS_synopsis_df['allele ID'].to_list()]
+pct_reads_filtered_for_1pct_list = [float(i.split('_')[7].split(':')[1]) if i.split('_')[7].split(':')[1] != 'None' else 0 for i in allele_TFBS_synopsis_df['allele ID'].to_list()]
+pct_reads_filtered_for_10pct_list = [float(i.split('_')[8].split(':')[1]) if i.split('_')[8].split(':')[1] != 'None' else 0 for i in allele_TFBS_synopsis_df['allele ID'].to_list()]
+
+# Add column with allele comment (comment if appropriate)
+# Note, pre-processing reads with a read cleaning utility such as cutadapt, trimmomatic, or fastp may remove such reads/
+# inferred alleles in advance, obviating need for this read length flag
+allele_TFBS_synopsis_df['comment'] = ['note: inferred allele length <=50 bp; read may be primer dimer; consult fasta file for this inferred allele, and/or consider pre-processing fastq file (filter reads) prior to running CollatedMotifs' if i <=50 else '' for i in [len(x) for x in allele_TFBS_synopsis_df['alignment query\n(allele sequence)'].to_list()]]
+
+allele_TFBS_synopsis_df.insert(loc=3, column='reads', value=read_count_list)
+allele_TFBS_synopsis_df.insert(loc=4, column='total reads', value=total_reads_list)
+allele_TFBS_synopsis_df.insert(loc=5, column='% total reads', value=pct_total_reads_list)
+allele_TFBS_synopsis_df.insert(loc=6, column='% reads filtered for reads <1%', value=pct_reads_filtered_for_1pct_list)
+allele_TFBS_synopsis_df.insert(loc=7, column='% reads filtered for reads <10%', value=pct_reads_filtered_for_10pct_list)
+
+# May-June 2021, revisited July
+# assess whether allele_TFBS_synopsis_df lost/gained TFBS may be TFBS 'replacements'/cognates
+lost_TFBS_list = []
+gained_TFBS_list = []
+
+allele_TFBS_synopsis_df_coordinates_updated = pd.DataFrame(columns=allele_TFBS_synopsis_df.columns)
+span_between_aligning_blocks_allele_list = []
+
+# coordinates for 'lost' TFBS have already been adjusted to reflect allele alignment span relative to user-provided reference sequence span
+# coordinates for 'gained' TFBS (novel to an allele relative to reference sequence) need to be corrected for positions in allele that are beyond a deletion/insertion span
+# (and would therefore not enable comparison to cognate coordinate position in reference sequence unless coordinates are adjusted for missing span)
+for index, row in allele_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF',"strand","lost or gained in allele (relative to ref)?"],ascending=[True, True, True, True, False]).iterrows():
+    if row['lost or gained in allele (relative to ref)?'] == "lost":
+        lost_TFBS_list.append(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(row['Lost TFBS start coordinate (in reference)'])+','+str(row['Lost TFBS end coordinate (in reference)'])+
+                              ','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val'])
+        allele_TFBS_synopsis_df_coordinates_updated.loc[index] = row
+        if re.search('-', dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[0]): 
+            # position of longest non-corresponding span in allele, relative to reference (in alignment) (characteristic if deletion allele)
+            span_between_aligning_blocks_allele_temp = re.search(max(re.findall(r'-+', dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[0].split('>')[1].split('<')[0])),dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[0].split('>')[1].split('<')[0]).span()
+            span_between_aligning_blocks_allele = tuple(value+1 for value in span_between_aligning_blocks_allele_temp)
+            calculated_span_between_aligning_blocks_allele = span_between_aligning_blocks_allele[1]-span_between_aligning_blocks_allele[0]
+            # position of longest non-corresponding span in reference, relative to allele (in alignment) (characteristic of insertion allele)
+            # span_between_aligning_blocks_reference = re.search(max(re.findall(r'-+', dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[1])),dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[0]).span()
+            span_between_aligning_blocks_allele_list.append(span_between_aligning_blocks_allele)
+        else:
+            span_between_aligning_blocks_allele_list.append('n/a') 
+    elif row['lost or gained in allele (relative to ref)?'] == "gained":
+        # retrieve allele's alignment span to reference sequence
+        ref_span = [dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('ref_coordinates_span')[0],dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('ref_coordinates_span')[-1]]
+        # retrieve allele's intact span
+        allele_length = len(dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[0].split('>')[1].split('<')[0].replace('-',''))
+        # retrieve allele's alignment span(s) relative to reference sequence
+        dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('hsp_alignment_spans')
+        # retrieve intervening span between allele alignment spans relative to reference sequence
+        # make adjustments in 'gained' TFBS coordinates, to reflect coordinates as defined in reference span rather than coordinates as defined in allele span
+        # scenario where there was not >1 hsp detected by BLASTN (alignment is unsplit by BLASTN)
+        if len(dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('hsp_alignment_spans')) < 2:
+            # print(row['allele rank'], dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('hsp_alignment_spans'))
+            # adjust allele coordinates relative to reference coordinates
+            hsp_spans_relative_to_reference_seq = dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('hsp_alignment_spans')    
+            basal_number = int(hsp_spans_relative_to_reference_seq[0][0])
+            hsp_spans_relative_to_reference_seq_adjusted = []
+            for x in hsp_spans_relative_to_reference_seq:
+                hsp_spans_relative_to_reference_seq_adjusted.append([int(y)-basal_number for y in x])  
+            if re.search('-', dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[0]): 
+            # position of longest non-corresponding span in allele, relative to reference (in alignment) (characteristic if deletion allele)
+                span_between_aligning_blocks_allele_temp = re.search(max(re.findall(r'-+', dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[0].split('>')[1].split('<')[0])),dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[0].split('>')[1].split('<')[0]).span()
+                span_between_aligning_blocks_allele = tuple(value+1 for value in span_between_aligning_blocks_allele_temp)
+                calculated_span_between_aligning_blocks_allele = span_between_aligning_blocks_allele[1]-span_between_aligning_blocks_allele[0]
+            # position of longest non-corresponding span in reference, relative to allele (in alignment) (characteristic of insertion allele)
+                # span_between_aligning_blocks_reference = re.search(max(re.findall(r'-+', dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[1])),dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[0]).span()
+                # scenario if no coordinate adjustment is needed (TFBS end coordinate occurs before largest alignment gap:
+                if int(row['Gained TFBS end coordinate (in allele)']) in range(int(hsp_spans_relative_to_reference_seq_adjusted[0][0]),
+                                                                                      int(span_between_aligning_blocks_allele[0])):
+                    gained_TFBS_list.append(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(row['Gained TFBS start coordinate (in allele)'])+','+
+                              str(row['Gained TFBS end coordinate (in allele)'])+','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val'])
+                    allele_TFBS_synopsis_df_coordinates_updated.loc[index] = row
+                    span_between_aligning_blocks_allele_list.append(span_between_aligning_blocks_allele)
+                # scenario if coordinate adjustment is needed (TFBS end coordinate occurs between start of alignment gap and alignment end):
+                elif int(row['Gained TFBS end coordinate (in allele)']) in range(int(span_between_aligning_blocks_allele[0]), int(hsp_spans_relative_to_reference_seq_adjusted[0][-1])):
+                    gained_TFBS_list.append(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(int(row['Gained TFBS start coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele)+','+
+                              str(int(row['Gained TFBS end coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele)+','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val']) 
+                    # add row with updated coordinates
+                    allele_TFBS_synopsis_df_coordinates_updated.loc[index] = {'sample':row['sample'],'allele rank':row['allele rank'], 
+                                                                              'allele ID':row['allele ID'], 'reads':row['reads'], 'total reads':row['total reads'],
+                                                                              '% total reads':row['% total reads'], '% reads filtered for reads <1%':row['% reads filtered for reads <1%'],
+                                                                              '% reads filtered for reads <10%':row['% reads filtered for reads <10%'], 'alignment query\n(allele sequence)':row['alignment query\n(allele sequence)'],
+                                                                              'alignment midline':row['alignment midline'], 'alignment hit\n(reference)':row['alignment hit\n(reference)'], 'TF':row['TF'],
+                                                                              'strand':row['strand'], "Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'":row["Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'"],
+                                                                              'Lost TFBS start coordinate (in reference)':row['Lost TFBS start coordinate (in reference)'], 'Lost TFBS end coordinate (in reference)':row['Lost TFBS end coordinate (in reference)'],
+                                                                              "Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'":row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"],
+                                                                              'Gained TFBS start coordinate (in allele)':int(row['Gained TFBS start coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele,
+                                                                              'Gained TFBS end coordinate (in allele)':int(row['Gained TFBS end coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele,
+                                                                              'p-val':row['p-val'], 'lost or gained in allele (relative to ref)?':row['lost or gained in allele (relative to ref)?'], 'comment':row['comment']}
+                    span_between_aligning_blocks_allele_list.append(span_between_aligning_blocks_allele)
+            else:
+                span_between_aligning_blocks_allele = 'n/a'
+                gained_TFBS_list.append(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(int(row['Gained TFBS start coordinate (in allele)']))+','+
+                              str(int(row['Gained TFBS end coordinate (in allele)']))+','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val'])
+                allele_TFBS_synopsis_df_coordinates_updated.loc[index] = row
+                span_between_aligning_blocks_allele_list.append(span_between_aligning_blocks_allele)
+        # scenario where there was >1 hsp detected by BLASTN (aligning segments were split by BLASTN and required reconstruction)
+        else:
+            span_between_aligning_blocks_allele_temp = re.search(max(re.findall(r'-+', dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[0].split('>')[1].split('<')[0])),dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('allele_sequence')[0].split('>')[1].split('<')[0]).span()
+            span_between_aligning_blocks_allele = tuple(value+1 for value in span_between_aligning_blocks_allele_temp)
+            calculated_span_between_aligning_blocks_allele = span_between_aligning_blocks_allele[1]-span_between_aligning_blocks_allele[0]
+            hsp_spans_relative_to_reference_seq = dict_allele_TFBS_synopsis.get(row['sample']).get(row['allele ID']).get('hsp_alignment_spans')    
+            basal_number = int(hsp_spans_relative_to_reference_seq[0][0])
+            hsp_spans_relative_to_reference_seq_adjusted = []
+            for x in hsp_spans_relative_to_reference_seq:
+                hsp_spans_relative_to_reference_seq_adjusted.append([int(y)-basal_number for y in x])  
+            # condition for coordinates within first alignment block/hsp (no coordinate adjustment needed)
+            if int(row['Gained TFBS end coordinate (in allele)']) in range(int(hsp_spans_relative_to_reference_seq_adjusted[0][0]),
+                                                                                      int(span_between_aligning_blocks_allele[0])):
+                gained_TFBS_list.append(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(row['Gained TFBS start coordinate (in allele)'])+','+
+                              str(row['Gained TFBS end coordinate (in allele)'])+','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val'])
+                allele_TFBS_synopsis_df_coordinates_updated.loc[index] = row
+                span_between_aligning_blocks_allele_list.append(span_between_aligning_blocks_allele)
+            # condition for coordinates within gap between alignments blocks/hsp's
+            elif int(row['Gained TFBS end coordinate (in allele)']) in range(int(hsp_spans_relative_to_reference_seq_adjusted[0][-1])+1,
+                                                                                      int(hsp_spans_relative_to_reference_seq_adjusted[1][0])):
+                gained_TFBS_list.append(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(row['Gained TFBS start coordinate (in allele)'])+','+
+                              str(row['Gained TFBS end coordinate (in allele)'])+','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val'])
+                allele_TFBS_synopsis_df_coordinates_updated.loc[index] = row
+                span_between_aligning_blocks_allele_list.append(span_between_aligning_blocks_allele)
+            # condition for coordinates beyond gap between alignments blocks/hsp's (coordinate adjustment needed)
+            elif int(row['Gained TFBS end coordinate (in allele)']) in range(int(hsp_spans_relative_to_reference_seq_adjusted[1][0]),
+                                                                                      int(hsp_spans_relative_to_reference_seq_adjusted[1][-1])):
+                gained_TFBS_list.append(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(int(row['Gained TFBS start coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele)+','+
+                              str(int(row['Gained TFBS end coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele)+','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val'])
+                # add row with updated coordinates
+                allele_TFBS_synopsis_df_coordinates_updated.loc[index] = {'sample':row['sample'],'allele rank':row['allele rank'], 
+                                                                              'allele ID':row['allele ID'], 'reads':row['reads'], 'total reads':row['total reads'],
+                                                                              '% total reads':row['% total reads'], '% reads filtered for reads <1%':row['% reads filtered for reads <1%'],
+                                                                              '% reads filtered for reads <10%':row['% reads filtered for reads <10%'], 'alignment query\n(allele sequence)':row['alignment query\n(allele sequence)'],
+                                                                              'alignment midline':row['alignment midline'], 'alignment hit\n(reference)':row['alignment hit\n(reference)'], 'TF':row['TF'],
+                                                                              'strand':row['strand'], "Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'":row["Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'"],
+                                                                              'Lost TFBS start coordinate (in reference)':row['Lost TFBS start coordinate (in reference)'], 'Lost TFBS end coordinate (in reference)':row['Lost TFBS end coordinate (in reference)'],
+                                                                              "Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'":row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"],
+                                                                              'Gained TFBS start coordinate (in allele)':int(row['Gained TFBS start coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele,
+                                                                              'Gained TFBS end coordinate (in allele)':int(row['Gained TFBS end coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele,
+                                                                              'p-val':row['p-val'], 'lost or gained in allele (relative to ref)?':row['lost or gained in allele (relative to ref)?'], 'comment':row['comment']}
+                span_between_aligning_blocks_allele_list.append(span_between_aligning_blocks_allele)
+            else:
+                gained_TFBS_list.append(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(int(row['Gained TFBS start coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele)+','+
+                              str(int(row['Gained TFBS end coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele)+','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val'])
+                # add row with updated coordinates
+                allele_TFBS_synopsis_df_coordinates_updated.loc[index] = {'sample':row['sample'],'allele rank':row['allele rank'], 
+                                                                              'allele ID':row['allele ID'], 'reads':row['reads'], 'total reads':row['total reads'],
+                                                                              '% total reads':row['% total reads'], '% reads filtered for reads <1%':row['% reads filtered for reads <1%'],
+                                                                              '% reads filtered for reads <10%':row['% reads filtered for reads <10%'], 'alignment query\n(allele sequence)':row['alignment query\n(allele sequence)'],
+                                                                              'alignment midline':row['alignment midline'], 'alignment hit\n(reference)':row['alignment hit\n(reference)'], 'TF':row['TF'],
+                                                                              'strand':row['strand'], "Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'":row["Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'"],
+                                                                              'Lost TFBS start coordinate (in reference)':row['Lost TFBS start coordinate (in reference)'], 'Lost TFBS end coordinate (in reference)':row['Lost TFBS end coordinate (in reference)'],
+                                                                              "Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'":row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"],
+                                                                              'Gained TFBS start coordinate (in allele)':int(row['Gained TFBS start coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele,
+                                                                              'Gained TFBS end coordinate (in allele)':int(row['Gained TFBS end coordinate (in allele)'])+calculated_span_between_aligning_blocks_allele,
+                                                                              'p-val':row['p-val'], 'lost or gained in allele (relative to ref)?':row['lost or gained in allele (relative to ref)?'], 'comment':row['comment']}
+                span_between_aligning_blocks_allele_list.append(span_between_aligning_blocks_allele)
+
+allele_TFBS_synopsis_df_coordinates_updated['span between alignment blocks'] = span_between_aligning_blocks_allele_list
                 
+
+potential_matched_TFBS_pairs_list = []
+
+for i in lost_TFBS_list:
+    for x in gained_TFBS_list:
+        if x.split(',')[4] == 'n/a' or x.split(',')[5] == 'n/a':
+            pass
+        else:
+            if i.split(',')[:4] == x.split(',')[:4]:
+                lost_range = range(int(i.split(',')[4]), int(i.split(',')[5])+1)
+                gained_range = range(int(x.split(',')[4]), int(x.split(',')[5])+1)
+                if len(set(lost_range) & set(gained_range)) > 0:
+                    potential_matched_TFBS_pairs_list.append((i,x))
+                
+unpaired_TFBS_gains_list = list(set(gained_TFBS_list) - 
+                                set([i[0] for i in potential_matched_TFBS_pairs_list]+[i[1] for i in potential_matched_TFBS_pairs_list]))
+unpaired_TFBS_losses_list = list(set(lost_TFBS_list) - 
+                                set([i[0] for i in potential_matched_TFBS_pairs_list]+[i[1] for i in potential_matched_TFBS_pairs_list]))
+
+# July 2021
+# Reconstitute data for categories ('no TFBS predicted as lost or gained in allele', 'predicted TFBS loss (TFBS lost in allele)',
+# 'predicted TFBS gain (novel to allele)')
+sample_list = []
+allele_rank_list = []
+allele_list = []
+read_count_list = []
+total_reads_count_list = []
+pct_total_reads_list = []
+pct_reads_filtered_for_1pct_list = []
+pct_reads_filtered_for_10pct_list = []
+allele_sequence_list = []
+reference_sequence_list = []
+alignment_midline_list = []
+TF_list = []
+strand_list = []
+lost_TFBS_sequence_list = []
+gained_TFBS_sequence_list = []
+allele_start_coordinate_list = []
+allele_stop_coordinate_list = []
+ref_start_coordinate_list = []
+ref_stop_coordinate_list = []
+lost_TFBS_pval_list = []
+gained_TFBS_pval_list = []
+predicted_lost_gained_pair_list = []
+
+for index, row in allele_TFBS_synopsis_df_coordinates_updated.iterrows():
+    if row['lost or gained in allele (relative to ref)?'] == 'lost':
+        lost_test_phrase = ''.join(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(row['Lost TFBS start coordinate (in reference)'])+','+str(row['Lost TFBS end coordinate (in reference)'])+
+                              ','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val'])
+        if lost_test_phrase in set([i[0] for i in potential_matched_TFBS_pairs_list]+[i[1] for i in potential_matched_TFBS_pairs_list]):
+            for match_pair in potential_matched_TFBS_pairs_list:
+                if lost_test_phrase in match_pair:
+                    sample_list.append(row['sample'])
+                    allele_rank_list.append(row['allele rank'])
+                    allele_list.append(row['allele ID'])
+                    read_count_list.append(row['reads'])
+                    total_reads_count_list.append(row['total reads'])
+                    pct_total_reads_list.append(row['% total reads'])
+                    pct_reads_filtered_for_1pct_list.append(row['% reads filtered for reads <1%'])
+                    pct_reads_filtered_for_10pct_list.append(row['% reads filtered for reads <10%'])
+                    allele_sequence_list.append(row['alignment query\n(allele sequence)'])
+                    reference_sequence_list.append(row['alignment hit\n(reference)'])
+                    alignment_midline_list.append(row['alignment midline'])
+                    TF_list.append(row['TF'])
+                    strand_list.append(row['strand'])
+                    lost_TFBS_sequence_list.append(match_pair[0].split(',')[7])
+                    ref_start_coordinate_list.append(match_pair[0].split(',')[4])
+                    ref_stop_coordinate_list.append(match_pair[0].split(',')[5])
+                    gained_TFBS_sequence_list.append(match_pair[1].split(',')[7])
+                    allele_start_coordinate_list.append(match_pair[1].split(',')[4])
+                    allele_stop_coordinate_list.append(match_pair[1].split(',')[5])
+                    lost_TFBS_pval_list.append(match_pair[0].split(',')[8])
+                    gained_TFBS_pval_list.append(match_pair[1].split(',')[8])
+                    predicted_lost_gained_pair_list.append('predicted lost-regained TFBS pair')
+                else:
+                    pass
+        elif lost_test_phrase in unpaired_TFBS_losses_list:
+            sample_list.append(row['sample'])
+            allele_rank_list.append(row['allele rank'])
+            allele_list.append(row['allele ID'])
+            read_count_list.append(row['reads'])
+            total_reads_count_list.append(row['total reads'])
+            pct_total_reads_list.append(row['% total reads'])
+            pct_reads_filtered_for_1pct_list.append(row['% reads filtered for reads <1%'])
+            pct_reads_filtered_for_10pct_list.append(row['% reads filtered for reads <10%'])
+            allele_sequence_list.append(row['alignment query\n(allele sequence)'])
+            reference_sequence_list.append(row['alignment hit\n(reference)'])
+            alignment_midline_list.append(row['alignment midline'])
+            TF_list.append(row['TF'])
+            strand_list.append(row['strand'])
+            lost_TFBS_sequence_list.append(lost_test_phrase.split(',')[7])
+            ref_start_coordinate_list.append(lost_test_phrase.split(',')[4])
+            ref_stop_coordinate_list.append(lost_test_phrase.split(',')[5])
+            gained_TFBS_sequence_list.append('n/a')
+            allele_start_coordinate_list.append('n/a')
+            allele_stop_coordinate_list.append('n/a')
+            lost_TFBS_pval_list.append(lost_test_phrase.split(',')[8])
+            gained_TFBS_pval_list.append('n/a (>'+pval_threshold+' threshold)')
+            predicted_lost_gained_pair_list.append('predicted TFBS loss (TFBS lost in allele)')
+    elif row['lost or gained in allele (relative to ref)?'] == 'gained':    
+        gained_test_phrase = ''.join(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(row['Gained TFBS start coordinate (in allele)'])+','+
+                              str(row['Gained TFBS end coordinate (in allele)'])+','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val'])
+        if gained_test_phrase in unpaired_TFBS_gains_list:
+            sample_list.append(row['sample'])
+            allele_rank_list.append(row['allele rank'])
+            allele_list.append(row['allele ID'])
+            read_count_list.append(row['reads'])
+            total_reads_count_list.append(row['total reads'])
+            pct_total_reads_list.append(row['% total reads'])
+            pct_reads_filtered_for_1pct_list.append(row['% reads filtered for reads <1%'])
+            pct_reads_filtered_for_10pct_list.append(row['% reads filtered for reads <10%'])
+            allele_sequence_list.append(row['alignment query\n(allele sequence)'])
+            reference_sequence_list.append(row['alignment hit\n(reference)'])
+            alignment_midline_list.append(row['alignment midline'])
+            TF_list.append(row['TF'])
+            strand_list.append(row['strand'])
+            lost_TFBS_sequence_list.append('n/a')
+            ref_start_coordinate_list.append('n/a')
+            ref_stop_coordinate_list.append('n/a')
+            gained_TFBS_sequence_list.append(gained_test_phrase.split(',')[7])
+            allele_start_coordinate_list.append(gained_test_phrase.split(',')[4])
+            allele_stop_coordinate_list.append(gained_test_phrase.split(',')[5])
+            lost_TFBS_pval_list.append('n/a (>'+pval_threshold+' threshold)')
+            gained_TFBS_pval_list.append(gained_test_phrase.split(',')[8])
+            predicted_lost_gained_pair_list.append('predicted TFBS gain (novel to allele)')
+    elif row['lost or gained in allele (relative to ref)?'] == 'No TFBS gained':
+        lost_test_phrase = ''.join(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(row['Lost TFBS start coordinate (in reference)'])+','+str(row['Lost TFBS end coordinate (in reference)'])+
+                              ','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val'])
+        if lost_test_phrase in unpaired_TFBS_losses_list:
+            pass
+        else:
+            if row['allele ID'] in allele_list:
+                pass
+            else:
+                sample_list.append(row['sample'])
+                allele_rank_list.append(row['allele rank'])
+                allele_list.append(row['allele ID'])
+                read_count_list.append(row['reads'])
+                total_reads_count_list.append(row['total reads'])
+                pct_total_reads_list.append(row['% total reads'])
+                pct_reads_filtered_for_1pct_list.append(row['% reads filtered for reads <1%'])
+                pct_reads_filtered_for_10pct_list.append(row['% reads filtered for reads <10%'])
+                allele_sequence_list.append(row['alignment query\n(allele sequence)'])
+                reference_sequence_list.append(row['alignment hit\n(reference)'])
+                alignment_midline_list.append(row['alignment midline'])
+                TF_list.append(row['TF'])
+                strand_list.append(row['strand'])
+                lost_TFBS_sequence_list.append('n/a')
+                ref_start_coordinate_list.append('n/a')
+                ref_stop_coordinate_list.append('n/a')
+                gained_TFBS_sequence_list.append('n/a')
+                allele_start_coordinate_list.append('n/a')
+                allele_stop_coordinate_list.append('n/a')
+                lost_TFBS_pval_list.append('n/a')
+                gained_TFBS_pval_list.append('n/a')
+                predicted_lost_gained_pair_list.append('no TFBS predicted as lost or gained in allele')
+    elif row['lost or gained in allele (relative to ref)?'] == 'No TFBS lost':
+        gained_test_phrase = ''.join(row['sample']+','+str(row['allele rank'])+','+row['TF']+','+row['strand']+','+
+                              str(row['Gained TFBS start coordinate (in allele)'])+','+
+                              str(row['Gained TFBS end coordinate (in allele)'])+','+row['lost or gained in allele (relative to ref)?']+','
+                              +row["Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'"]+
+                             ','+row['p-val']) 
+        if gained_test_phrase in unpaired_TFBS_gains_list:
+            if row['allele ID'] in allele_list:
+                pass
+            else:
+                sample_list.append(row['sample'])
+                allele_rank_list.append(row['allele rank'])
+                allele_list.append(row['allele ID'])
+                read_count_list.append(row['reads'])
+                total_reads_count_list.append(row['total reads'])
+                pct_total_reads_list.append(row['% total reads'])
+                pct_reads_filtered_for_1pct_list.append(row['% reads filtered for reads <1%'])
+                pct_reads_filtered_for_10pct_list.append(row['% reads filtered for reads <10%'])
+                allele_sequence_list.append(row['alignment query\n(allele sequence)'])
+                reference_sequence_list.append(row['alignment hit\n(reference)'])
+                alignment_midline_list.append(row['alignment midline'])
+                TF_list.append(row['TF'])
+                strand_list.append(row['strand'])
+                lost_TFBS_sequence_list.append('n/a')
+                ref_start_coordinate_list.append('n/a')
+                ref_stop_coordinate_list.append('n/a')
+                gained_TFBS_sequence_list.append('n/a')
+                allele_start_coordinate_list.append('n/a')
+                allele_stop_coordinate_list.append('n/a')
+                lost_TFBS_pval_list.append('n/a')
+                gained_TFBS_pval_list.append('n/a')
+                predicted_lost_gained_pair_list.append('no TFBS predicted as lost or gained in allele')
+                         
+# Prepare dataframe synopsis of samples and alleles, with individual rows mapping potential lost-regained TFBS pairs for in-common TFs
+interpreted_TFBS_synopsis_df_columns = {"sample":sample_list, "allele rank":allele_rank_list, "allele ID":allele_list, 
+                                        'read count':read_count_list,
+                                        'total reads':total_reads_count_list,
+                                        '% total reads':pct_total_reads_list,
+                                        '% reads filtered for reads <1%':pct_reads_filtered_for_1pct_list,
+                                        '% reads filtered for reads <10%':pct_reads_filtered_for_10pct_list,
+                                        "alignment query\n(allele sequence)":allele_sequence_list,
+                                        "alignment midline":alignment_midline_list, "alignment hit\n(reference)":reference_sequence_list,
+                                        "TF":TF_list,
+                                        "strand":strand_list, 
+                                        "Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'":lost_TFBS_sequence_list,
+                                        "Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'":gained_TFBS_sequence_list, 
+                                        "Lost TFBS coordinate start (in reference)":ref_start_coordinate_list,
+                                        "Lost TFBS coordinate end (in reference)":ref_stop_coordinate_list,
+                                        "Gained TFBS coordinate start (in allele)":allele_start_coordinate_list,
+                                        "Gained TFBS coordinate end (in allele)":allele_stop_coordinate_list,
+                                        "Lost TFBS p-val (in reference)":lost_TFBS_pval_list,
+                                        "Gained TBFS p-val (in allele)":gained_TFBS_pval_list,
+                                        "interpretation":predicted_lost_gained_pair_list}
+
+interpreted_TFBS_synopsis_df = pd.DataFrame(interpreted_TFBS_synopsis_df_columns)
+
+# Add column with allele comment (comment if appropriate)
+interpreted_TFBS_synopsis_df['comment'] = ['note: inferred allele length <=50 bp; read may be primer dimer; consult fasta file for this inferred allele, and/or consider pre-processing fastq file (filter reads) prior to running CollatedMotifs' if i <=50 else '' for i in [len(x) for x in interpreted_TFBS_synopsis_df['alignment query\n(allele sequence)'].to_list()]]
+
+interpreted_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF',"strand","interpretation"],ascending=[True, True, True, True, False])
+
+# clean up interpreted_TFBS_synopsis_df; some sample alleles have been assigned rows that include the
+# label 'no TFBS predicted as lost or gained in allele', because of order of operations above,
+# but in fact have TFBS(s) predicted as lost or gained; find and remove these rows from interpreted_TFBS_synopsis_df
+# (in new dataframe called interpreted_TFBS_syopsis_df_updated)
+allele_rank_count_list = []
+sample_set = set(interpreted_TFBS_synopsis_df['sample'].to_list())
+
+for sample in sample_set:
+    allele_rank_list = []
+    for index, row in interpreted_TFBS_synopsis_df.iterrows():
+        if row['sample'] == sample:
+            if row['allele rank'] not in allele_rank_list:
+                allele_rank_list.append(row['allele rank'])
+    allele_rank_count_list.append((sample, sorted(allele_rank_list)))
+
+suspects = []
+for sample in allele_rank_count_list:
+    for allele_rank in sample[1]:
+        for index1, row in interpreted_TFBS_synopsis_df.iterrows():
+            if row['sample'] == sample[0] and row['allele rank'] == allele_rank and row['interpretation'] == 'no TFBS predicted as lost or gained in allele':
+                test_singularity = True
+                for index, row in interpreted_TFBS_synopsis_df.iterrows():
+                    if row['sample'] == sample[0] and row['allele rank'] == allele_rank and row['interpretation'] != 'no TFBS predicted as lost or gained in allele':
+                        test_singularity = False
+                if test_singularity == True:
+                    pass
+                elif test_singularity == False:
+                    suspects.append((sample[0], allele_rank, index1))
+                    
+index_drop_list = [i[2] for i in suspects]
+interpreted_TFBS_synopsis_df_updated = interpreted_TFBS_synopsis_df.drop(index_drop_list)
+
+# Now, query output for specific TF of interest, based on the following properties:
+# (1) lost without corresponding re-gain, (2) lost without corresponding re-gain and without positionally coinciding TFBS for new TF
+# TF of interest was provided by user at script outset (encoded by variable samples_list = set(interpreted_TFBS_synopsis_df['sample'].to_list())
+
+samples_list = set(interpreted_TFBS_synopsis_df['sample'].to_list())
+                   
+if TF_of_interest == '':
+    pass
+else:
+    interpretation_dict = {}
+    for sample in samples_list:
+        sample_interpretation_dict = {}
+        for index, row in interpreted_TFBS_synopsis_df_updated.sort_values(by=['sample','allele rank','TF',"strand","interpretation"],ascending=[True, True, True, True, False]).iterrows():
+            if row['sample'] == sample:
+                if row['interpretation'] == "no TFBS predicted as lost or gained in allele":
+                    sample_interpretation_dict[row['allele rank']] = [row.to_list()]  
+                elif re.search(r'\b'+TF_of_interest+r'\b', row['TF']) and row['interpretation'] == 'predicted TFBS loss (TFBS lost in allele)':
+                    if row['allele rank'] not in sample_interpretation_dict:
+                        sample_interpretation_dict[row['allele rank']] = [row.to_list()]
+                    elif row['allele rank'] in sample_interpretation_dict:
+                        sample_interpretation_dict[row['allele rank']].append(row.to_list())
+                elif re.search(r'\b'+TF_of_interest+r'\b', row['TF']) and row['interpretation'] == 'predicted TFBS gain (novel to allele)':
+                    if row['allele rank'] not in sample_interpretation_dict:
+                        sample_interpretation_dict[row['allele rank']] = [row.to_list()]
+                    elif row['allele rank'] in sample_interpretation_dict:
+                        sample_interpretation_dict[row['allele rank']].append(row.to_list())
+                elif re.search(r'\b'+TF_of_interest+r'\b', row['TF']) and row['interpretation'] == 'predicted lost-regained TFBS pair':
+                    if row['allele rank'] not in sample_interpretation_dict:
+                        sample_interpretation_dict[row['allele rank']] = [row.to_list()]
+                    elif row['allele rank'] in sample_interpretation_dict:
+                        sample_interpretation_dict[row['allele rank']].append(row.to_list())         
+        interpretation_dict[sample] = sample_interpretation_dict
+
+# July 2021
+# Now assess potential samples of particular interest based on 2 criteria above
+# Iterate through alleles to bin alleles for samples among the indicated lists below
+# (1) lost without corresponding gain, (2) lost without corresponding gain and without positionally coinciding TFBS for new TF
+# for (2), check for 'predicted TFBS gain (novel to allele)' that coincides with position of TFBS loss for TF of interest
+
+if TF_of_interest == '':
+    pass
+else:               
+    predicted_loss_of_target_TFBS_list = []
+    predicted_exclusive_loss_of_target_TFBS_list = []
+    predicted_loss_with_regain_of_different_TFBS_for_same_TF_list = []
+    predicted_loss_with_gain_of_different_TFBS_list = []
+
+    for sample in interpretation_dict:
+        for allele in interpretation_dict.get(sample):
+            for instance in interpretation_dict.get(sample).get(allele):
+                # loss with corresponding "re-gain" of 'replacement' TFBS for TF of interest
+                if instance[21] == 'predicted lost-regained TFBS pair':
+                    predicted_loss_with_regain_of_different_TFBS_for_same_TF_list.append(instance)
+                # loss without corresponding gain of 'replacement' TFBS for TF of interest
+                elif instance[21] == 'predicted TFBS loss (TFBS lost in allele)':
+                    predicted_loss_of_target_TFBS_list.append((sample,allele,instance))
+                    exclusive_loss_check = True
+                # further filter, for loss without corresponding gain of 'replacement' TFBS for TF of interest & no predicted positionally coinciding novel TFBS
+                    # consider two coordinate ranges to check (regarding losses):
+                    # first, check for allele's span between alignment blocks
+                    span_between_alignment_blocks = allele_TFBS_synopsis_df_coordinates_updated.loc[
+                        (allele_TFBS_synopsis_df_coordinates_updated['sample'] == sample) & 
+                        (allele_TFBS_synopsis_df_coordinates_updated['allele rank'] == allele) &
+                        (allele_TFBS_synopsis_df_coordinates_updated['strand'] == instance[12]) &
+                        (allele_TFBS_synopsis_df_coordinates_updated['TF'].str.match(r'\b'+TF_of_interest+r'\b')) &
+                        (allele_TFBS_synopsis_df_coordinates_updated['Lost TFBS start coordinate (in reference)'] == int(instance[15])) &
+                        (allele_TFBS_synopsis_df_coordinates_updated['Lost TFBS end coordinate (in reference)'] == int(instance[16]))]['span between alignment blocks'].values[0]
+                    if span_between_alignment_blocks != 'n/a':
+                        for index, row in interpreted_TFBS_synopsis_df_updated.iterrows():
+                            if row['sample'] == sample and row['allele rank'] == allele and row['interpretation'] == 'predicted TFBS gain (novel to allele)':
+                                if set(range(int(row['Gained TFBS coordinate start (in allele)']),int(row['Gained TFBS coordinate end (in allele)']))).intersection(range(span_between_alignment_blocks[0],span_between_alignment_blocks[1])):
+                                    predicted_loss_with_gain_of_different_TFBS_list.append(((sample,allele,instance, row.to_list())))
+                                    exclusive_loss_check = False
+                    else:
+                        coordinate_range_to_check = range(int(interpreted_TFBS_synopsis_df_updated.loc[(interpreted_TFBS_synopsis_df_updated['sample'] == sample) &
+                                                 (interpreted_TFBS_synopsis_df_updated['allele rank'] == allele) &
+                                                  (interpreted_TFBS_synopsis_df_updated['strand'] == instance[12]) &
+                                                 (interpreted_TFBS_synopsis_df_updated['interpretation'] == 'predicted TFBS loss (TFBS lost in allele)') &
+                                                (interpreted_TFBS_synopsis_df_updated['TF'].str.match(r'\b'+TF_of_interest+r'\b'))]['Lost TFBS coordinate start (in reference)'].values[0]),
+                                                  int(interpreted_TFBS_synopsis_df_updated.loc[(interpreted_TFBS_synopsis_df_updated['sample'] == sample) &
+                                                 (interpreted_TFBS_synopsis_df_updated['allele rank'] == allele) &
+                                                  (interpreted_TFBS_synopsis_df_updated['strand'] == instance[12]) &
+                                                 (interpreted_TFBS_synopsis_df_updated['interpretation'] == 'predicted TFBS loss (TFBS lost in allele)') &
+                                                (interpreted_TFBS_synopsis_df_updated['TF'].str.match(r'\b'+TF_of_interest+r'\b'))]['Lost TFBS coordinate end (in reference)'].values[0]))
+                        for index, row in interpreted_TFBS_synopsis_df_updated.iterrows():
+                            if row['sample'] == sample and row['allele rank'] == allele and row['interpretation'] == 'predicted TFBS gain (novel to allele)':
+                                if set(coordinate_range_to_check).intersection(range(int(row['Gained TFBS coordinate start (in allele)']), 
+                                                                             int(row['Gained TFBS coordinate end (in allele)']))):
+                                    predicted_loss_with_gain_of_different_TFBS_list.append(((sample,allele,instance, row.to_list())))
+                                    exclusive_loss_check = False
+                    if exclusive_loss_check == True:
+                        predicted_exclusive_loss_of_target_TFBS_list.append((sample,allele,instance))
+                                                  
+# Prepare output to indicate **loss of TFBS for TF of interest**, without regain of different TFBS for same TF
+if TF_of_interest == '':
+    pass
+else:
+    sample_list = []
+    allele_rank_list = []
+    allele_list = []
+    read_count_list = []
+    total_reads_count_list = []
+    pct_total_reads_list = []
+    pct_reads_filtered_for_1pct_list = []
+    pct_reads_filtered_for_10pct_list = []
+    allele_sequence_list = []
+    reference_sequence_list = []
+    alignment_midline_list = []
+    TF_lost_list = []
+    TF_lost_strand_list = []
+    lost_TFBS_sequence_list = []
+    lost_TFBS_start_coordinate_list = []
+    lost_TFBS_end_coordinate_list = []
+    lost_TFBS_pval_list = []
+    for pair in predicted_loss_of_target_TFBS_list:
+        sample_list.append(pair[0])
+        allele_rank_list.append(pair[1])
+        allele_list.append(pair[2][2])
+        read_count_list.append(pair[2][2].split('_')[2].strip('[]').split('/')[0])
+        total_reads_count_list.append(pair[2][2].split('_')[2].strip('[]').split('/')[1])
+        pct_total_reads_list.append(pair[2][5])
+        pct_reads_filtered_for_1pct_list.append(pair[2][6])
+        pct_reads_filtered_for_10pct_list.append(pair[2][7])
+        allele_sequence_list.append(pair[2][8])
+        reference_sequence_list.append(pair[2][10])
+        alignment_midline_list.append(pair[2][9])
+        TF_lost_list.append(pair[2][11])
+        TF_lost_strand_list.append(pair[2][12])
+        lost_TFBS_sequence_list.append(pair[2][13])
+        lost_TFBS_start_coordinate_list.append(pair[2][15])
+        lost_TFBS_end_coordinate_list.append(pair[2][16])
+        lost_TFBS_pval_list.append(pair[2][19])
+        
+# create dataframe for predicted_loss_of_TFBS_synopsis
+if TF_of_interest == '':
+    pass
+else:
+    predicted_loss_of_TFBS_synopsis_df_columns = {"sample":sample_list, "allele rank":allele_rank_list, "allele ID":allele_list, 
+                                        'read count':read_count_list,
+                                        'total reads':total_reads_count_list,
+                                        '% total reads':pct_total_reads_list,
+                                        '% reads filtered for reads <1%':pct_reads_filtered_for_1pct_list,
+                                        '% reads filtered for reads <10%':pct_reads_filtered_for_10pct_list,
+                                        "alignment query\n(allele sequence)":allele_sequence_list,
+                                        "alignment midline":alignment_midline_list, "alignment hit\n(reference)":reference_sequence_list,
+                                        "TF lost":TF_lost_list,                  
+                                        "TF lost strand":TF_lost_strand_list,                            
+                                        "Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'":lost_TFBS_sequence_list,
+                                        "Lost TFBS coordinate start (in reference)":lost_TFBS_start_coordinate_list,
+                                        "Lost TFBS coordinate end (in reference)":lost_TFBS_end_coordinate_list,
+                                        "Lost TFBS p-val (in reference)":lost_TFBS_pval_list}
+    predicted_loss_of_TFBS_synopsis_df = pd.DataFrame(predicted_loss_of_TFBS_synopsis_df_columns)
+    # Add column with allele comment (comment if appropriate)
+    predicted_loss_of_TFBS_synopsis_df['comment'] = ['note: inferred allele length <=50 bp; read may be primer dimer; consult fasta file for this inferred allele, and/or consider pre-processing fastq file (filter reads) prior to running CollatedMotifs' if i <=50 else '' for i in [len(x) for x in predicted_loss_of_TFBS_synopsis_df['alignment query\n(allele sequence)'].to_list()]]
+    predicted_loss_of_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True])
+    
+# Prepare output to indicate **loss of TFBS for TF of interest with regain of different TFBS for same TF**
+if TF_of_interest == '':
+    pass
+else:
+    sample_list = []
+    allele_rank_list = []
+    allele_list = []
+    read_count_list = []
+    total_reads_count_list = []
+    pct_total_reads_list = []
+    pct_reads_filtered_for_1pct_list = []
+    pct_reads_filtered_for_10pct_list = []
+    allele_sequence_list = []
+    reference_sequence_list = []
+    alignment_midline_list = []
+    TF_lost_list = []
+    TF_lost_strand_list = []
+    lost_TFBS_sequence_list = []
+    lost_TFBS_start_coordinate_list = []
+    lost_TFBS_end_coordinate_list = []
+    lost_TFBS_pval_list = []
+    TF_gained_list = []
+    TF_gained_strand_list = []
+    gained_TFBS_sequence_list = []
+    gained_TFBS_start_coordinate_list = []
+    gained_TFBS_end_coordinate_list = []
+    gained_TFBS_pval_list = []
+    for allele in predicted_loss_with_regain_of_different_TFBS_for_same_TF_list:
+        sample_list.append(allele[0])
+        allele_rank_list.append(allele[1])
+        allele_list.append(allele[2])
+        read_count_list.append(allele[2].split('_')[2].strip('[]').split('/')[0])
+        total_reads_count_list.append(allele[2].split('_')[2].strip('[]').split('/')[1])
+        pct_total_reads_list.append(allele[5])
+        pct_reads_filtered_for_1pct_list.append(allele[6])
+        pct_reads_filtered_for_10pct_list.append(allele[7])
+        allele_sequence_list.append(allele[8])
+        reference_sequence_list.append(allele[10])
+        alignment_midline_list.append(allele[9])
+        TF_lost_list.append(allele[11])
+        TF_lost_strand_list.append(allele[12])
+        lost_TFBS_sequence_list.append(allele[13])
+        lost_TFBS_start_coordinate_list.append(allele[15])
+        lost_TFBS_end_coordinate_list.append(allele[16])
+        lost_TFBS_pval_list.append(allele[19])
+        TF_gained_list.append(allele[11])
+        TF_gained_strand_list.append(allele[12])
+        gained_TFBS_sequence_list.append(allele[14])
+        gained_TFBS_start_coordinate_list.append(allele[17])
+        gained_TFBS_end_coordinate_list.append(allele[18])
+        gained_TFBS_pval_list.append(allele[20])
+        
+# create dataframe for predicted_loss_with_regain_of_new_TFBS_for_same_TF_synopsis
+if TF_of_interest == '':
+    pass
+else:
+    predicted_loss_with_regain_of_new_TFBS_for_same_TF_synopsis_df_columns = {"sample":sample_list, "allele rank":allele_rank_list, "allele ID":allele_list, 
+                                        'read count':read_count_list,
+                                        'total reads':total_reads_count_list,
+                                        '% total reads':pct_total_reads_list,
+                                        '% reads filtered for reads <1%':pct_reads_filtered_for_1pct_list,
+                                        '% reads filtered for reads <10%':pct_reads_filtered_for_10pct_list,
+                                        "alignment query\n(allele sequence)":allele_sequence_list,
+                                        "alignment midline":alignment_midline_list, "alignment hit\n(reference)":reference_sequence_list,
+                                        "TF lost":TF_lost_list,
+                                        "TF gained":TF_gained_list,                    
+                                        "TF lost strand":TF_lost_strand_list,
+                                        "TF gained strand":TF_gained_strand_list,                        
+                                        "Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'":lost_TFBS_sequence_list,
+                                        "Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'":gained_TFBS_sequence_list, 
+                                        "Lost TFBS coordinate start (in reference)":lost_TFBS_start_coordinate_list,
+                                        "Lost TFBS coordinate end (in reference)":lost_TFBS_end_coordinate_list,
+                                        "Gained TFBS coordinate start (in allele)":gained_TFBS_start_coordinate_list,
+                                        "Gained TFBS coordinate end (in allele)":gained_TFBS_end_coordinate_list,
+                                        "Lost TFBS p-val (in reference)":lost_TFBS_pval_list,
+                                        "Gained TBFS p-val (in allele)":gained_TFBS_pval_list}
+    predicted_loss_with_regain_of_new_TFBS_for_same_TF_synopsis_df = pd.DataFrame(predicted_loss_with_regain_of_new_TFBS_for_same_TF_synopsis_df_columns)
+    # Add column with allele comment (comment if appropriate)
+    predicted_loss_with_regain_of_new_TFBS_for_same_TF_synopsis_df['comment'] = ['note: inferred allele length <=50 bp; read may be primer dimer; consult fasta file for this inferred allele, and/or consider pre-processing fastq file (filter reads) prior to running CollatedMotifs' if i <=50 else '' for i in [len(x) for x in predicted_loss_with_regain_of_new_TFBS_for_same_TF_synopsis_df['alignment query\n(allele sequence)'].to_list()]]
+    predicted_loss_with_regain_of_new_TFBS_for_same_TF_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True])
+
+# Prepare output to indicate **loss of TFBS for TF of interest with gain of TFBS for novel TF**
+if TF_of_interest == '':
+    pass
+else:
+    sample_list = []
+    allele_rank_list = []
+    allele_list = []
+    read_count_list = []
+    total_reads_count_list = []
+    pct_total_reads_list = []
+    pct_reads_filtered_for_1pct_list = []
+    pct_reads_filtered_for_10pct_list = []
+    allele_sequence_list = []
+    reference_sequence_list = []
+    alignment_midline_list = []
+    TF_lost_list = []
+    TF_lost_strand_list = []
+    lost_TFBS_sequence_list = []
+    lost_TFBS_start_coordinate_list = []
+    lost_TFBS_end_coordinate_list = []
+    lost_TFBS_pval_list = []
+    TF_gained_list = []
+    TF_gained_strand_list = []
+    gained_TFBS_sequence_list = []
+    gained_TFBS_start_coordinate_list = []
+    gained_TFBS_end_coordinate_list = []
+    gained_TFBS_pval_list = []
+    for pair in predicted_loss_with_gain_of_different_TFBS_list:
+        sample_list.append(pair[0])
+        allele_rank_list.append(pair[1])
+        allele_list.append(pair[2][2])
+        read_count_list.append(pair[2][2].split('_')[2].strip('[]').split('/')[0])
+        total_reads_count_list.append(pair[2][2].split('_')[2].strip('[]').split('/')[1])
+        pct_total_reads_list.append(pair[2][5])
+        pct_reads_filtered_for_1pct_list.append(pair[2][6])
+        pct_reads_filtered_for_10pct_list.append(pair[2][7])
+        allele_sequence_list.append(pair[2][8])
+        reference_sequence_list.append(pair[2][10])
+        alignment_midline_list.append(pair[2][9])
+        TF_lost_list.append(pair[2][11])
+        TF_lost_strand_list.append(pair[2][12])
+        lost_TFBS_sequence_list.append(pair[2][13])
+        lost_TFBS_start_coordinate_list.append(pair[2][15])
+        lost_TFBS_end_coordinate_list.append(pair[2][16])
+        lost_TFBS_pval_list.append(pair[2][19])
+        TF_gained_list.append(pair[3][11])
+        TF_gained_strand_list.append(pair[3][12])
+        gained_TFBS_sequence_list.append(pair[3][14])
+        gained_TFBS_start_coordinate_list.append(pair[3][17])
+        gained_TFBS_end_coordinate_list.append(pair[3][18])
+        gained_TFBS_pval_list.append(pair[3][20])
+        
+# create dataframe for predicted_loss_with_gain_of_different_TFBS_synopsis
+if TF_of_interest == '':
+    pass
+else:
+    predicted_loss_with_gain_of_different_TFBS_synopsis_df_columns = {"sample":sample_list, "allele rank":allele_rank_list, "allele ID":allele_list, 
+                                        'read count':read_count_list,
+                                        'total reads':total_reads_count_list,
+                                        '% total reads':pct_total_reads_list,
+                                        '% reads filtered for reads <1%':pct_reads_filtered_for_1pct_list,
+                                        '% reads filtered for reads <10%':pct_reads_filtered_for_10pct_list,
+                                        "alignment query\n(allele sequence)":allele_sequence_list,
+                                        "alignment midline":alignment_midline_list, "alignment hit\n(reference)":reference_sequence_list,
+                                        "TF lost":TF_lost_list,
+                                        "TF gained":TF_gained_list,                    
+                                        "TF lost strand":TF_lost_strand_list,
+                                        "TF gained strand":TF_gained_strand_list,                        
+                                        "Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'":lost_TFBS_sequence_list,
+                                        "Gained TFBS sequence (not in reference at this position, novel to allele)\n*Note: this TFBS sequence is in the allele, 5'-3' on strand indicated in 'strand'":gained_TFBS_sequence_list, 
+                                        "Lost TFBS coordinate start (in reference)":lost_TFBS_start_coordinate_list,
+                                        "Lost TFBS coordinate end (in reference)":lost_TFBS_end_coordinate_list,
+                                        "Gained TFBS coordinate start (in allele)":gained_TFBS_start_coordinate_list,
+                                        "Gained TFBS coordinate end (in allele)":gained_TFBS_end_coordinate_list,
+                                        "Lost TFBS p-val (in reference)":lost_TFBS_pval_list,
+                                        "Gained TBFS p-val (in allele)":gained_TFBS_pval_list}
+    predicted_loss_with_gain_of_different_TFBS_synopsis_df = pd.DataFrame(predicted_loss_with_gain_of_different_TFBS_synopsis_df_columns)
+    # Add column with allele comment (comment if appropriate)
+    predicted_loss_with_gain_of_different_TFBS_synopsis_df['comment'] = ['note: inferred allele length <=50 bp; read may be primer dimer; consult fasta file for this inferred allele, and/or consider pre-processing fastq file (filter reads) prior to running CollatedMotifs' if i <=50 else '' for i in [len(x) for x in predicted_loss_with_gain_of_different_TFBS_synopsis_df['alignment query\n(allele sequence)'].to_list()]]
+    predicted_loss_with_gain_of_different_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True])
+
+# Prepare output to indicate **loss of TFBS for TF of interest with no predicted gain of TFBS for novel TF** (at pval threshold)
+if TF_of_interest == '':
+    pass
+else:
+    sample_list = []
+    allele_rank_list = []
+    allele_list = []
+    read_count_list = []
+    total_reads_count_list = []
+    pct_total_reads_list = []
+    pct_reads_filtered_for_1pct_list = []
+    pct_reads_filtered_for_10pct_list = []
+    allele_sequence_list = []
+    reference_sequence_list = []
+    alignment_midline_list = []
+    TF_lost_list = []
+    TF_lost_strand_list = []
+    lost_TFBS_sequence_list = []
+    lost_TFBS_start_coordinate_list = []
+    lost_TFBS_end_coordinate_list = []
+    lost_TFBS_pval_list = []
+    TF_gained_list = []
+    TF_gained_strand_list = []
+    gained_TFBS_sequence_list = []
+    gained_TFBS_start_coordinate_list = []
+    gained_TFBS_end_coordinate_list = []
+    gained_TFBS_pval_list = []
+    for pair in predicted_exclusive_loss_of_target_TFBS_list:
+        sample_list.append(pair[0])
+        allele_rank_list.append(pair[1])
+        allele_list.append(pair[2][2])
+        read_count_list.append(pair[2][2].split('_')[2].strip('[]').split('/')[0])
+        total_reads_count_list.append(pair[2][2].split('_')[2].strip('[]').split('/')[1])
+        pct_total_reads_list.append(pair[2][5])
+        pct_reads_filtered_for_1pct_list.append(pair[2][6])
+        pct_reads_filtered_for_10pct_list.append(pair[2][7])
+        allele_sequence_list.append(pair[2][8])
+        reference_sequence_list.append(pair[2][10])
+        alignment_midline_list.append(pair[2][9])
+        TF_lost_list.append(pair[2][11])
+        TF_lost_strand_list.append(pair[2][12])
+        lost_TFBS_sequence_list.append(pair[2][13])
+        lost_TFBS_start_coordinate_list.append(pair[2][15])
+        lost_TFBS_end_coordinate_list.append(pair[2][16])
+        lost_TFBS_pval_list.append(pair[2][19])
+        
+# create dataframe for predicted_exclusive_loss_of_TFBS_synopsis
+if TF_of_interest == '':
+    pass
+else:
+    predicted_exclusive_loss_of_TFBS_synopsis_df_columns = {"sample":sample_list, "allele rank":allele_rank_list, "allele ID":allele_list, 
+                                        'read count':read_count_list,
+                                        'total reads':total_reads_count_list,
+                                        '% total reads':pct_total_reads_list,
+                                        '% reads filtered for reads <1%':pct_reads_filtered_for_1pct_list,
+                                        '% reads filtered for reads <10%':pct_reads_filtered_for_10pct_list,
+                                        "alignment query\n(allele sequence)":allele_sequence_list,
+                                        "alignment midline":alignment_midline_list, "alignment hit\n(reference)":reference_sequence_list,
+                                        "TF lost":TF_lost_list,                  
+                                        "TF lost strand":TF_lost_strand_list,                            
+                                        "Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'":lost_TFBS_sequence_list,
+                                        "Lost TFBS coordinate start (in reference)":lost_TFBS_start_coordinate_list,
+                                        "Lost TFBS coordinate end (in reference)":lost_TFBS_end_coordinate_list,
+                                        "Lost TFBS p-val (in reference)":lost_TFBS_pval_list}
+    predicted_exclusive_loss_of_TFBS_synopsis_df = pd.DataFrame(predicted_exclusive_loss_of_TFBS_synopsis_df_columns)
+    # Add column with allele comment (comment if appropriate)
+    predicted_exclusive_loss_of_TFBS_synopsis_df['comment'] = ['note: inferred allele length <=50 bp; read may be primer dimer; consult fasta file for this inferred allele, and/or consider pre-processing fastq file (filter reads) prior to running CollatedMotifs' if i <=50 else '' for i in [len(x) for x in predicted_exclusive_loss_of_TFBS_synopsis_df['alignment query\n(allele sequence)'].to_list()]]
+    predicted_exclusive_loss_of_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True])
+
+# July 2021
+# Take stock of samples with alleles having lost TFBS for TF of interest without regain/gain of TFBS for distinct TF
+# Re-populate remaining ranked alleles for these samples, to facilitate genotype inference
+if TF_of_interest == '':
+    pass
+else:
+    sample_list = []
+    allele_rank_list = []
+    allele_list = []
+    read_count_list = []
+    total_reads_list = []
+    total_reads_pct_list = []
+    total_reads_1pct_list = []
+    total_reads_10pct_list = []
+    allele_sequence_list = []
+    alignment_midline_list = []
+    reference_sequence_list = []
+    TF_list = []
+    TF_exlusively_lost_list = []
+    TF_lost_with_regain_of_TFBS_for_same_TF_list = []
+    TF_lost_with_gain_of_distinct_TF_list = []
+    reference_TFBS_unchanged_list = []
+    strand_list = []
+    TFBS_sequence_list = []
+    allele_start_coordinate_list = []
+    allele_stop_coordinate_list = []
+    p_val_list = []
+    comment_list = []
+
+    for sample in set(predicted_loss_of_TFBS_synopsis_df['sample'].to_list()):
+        allele_lost_TFBS_list = []
+        allele_rank_lost_TFBS_list = []
+        allele_rank_other_list = []
+        
+        for index, row in predicted_exclusive_loss_of_TFBS_synopsis_df.iterrows():
+            if row['sample'] == sample:
+                sample_list.append(row['sample'])
+                allele_rank_list.append(row['allele rank'])
+                allele_rank_lost_TFBS_list.append(row['allele rank'])
+                allele_list.append(row['allele ID'])
+                read_count_list.append(row['read count'])
+                total_reads_list.append(row['total reads'])
+                total_reads_pct_list.append(row['% total reads'])
+                total_reads_1pct_list.append(row['% reads filtered for reads <1%']) 
+                total_reads_10pct_list.append(row['% reads filtered for reads <10%'])
+                allele_sequence_list.append(row['alignment query\n(allele sequence)'])
+                alignment_midline_list.append(row['alignment midline'])
+                reference_sequence_list.append(row['alignment hit\n(reference)'])
+                TF_list.append(row['TF lost'])
+                TF_exlusively_lost_list.append('x')
+                TF_lost_with_regain_of_TFBS_for_same_TF_list.append('')
+                TF_lost_with_gain_of_distinct_TF_list.append('')
+                reference_TFBS_unchanged_list.append('')
+                strand_list.append(row['TF lost strand']) 
+                TFBS_sequence_list.append(row["Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'"])
+                allele_start_coordinate_list.append(row['Lost TFBS coordinate start (in reference)'])
+                allele_stop_coordinate_list.append(row['Lost TFBS coordinate end (in reference)'])
+                p_val_list.append(row['Lost TFBS p-val (in reference)'])
+                comment_list.append(row['comment']) 
+                allele_rank_lost_TFBS_list.append(row['allele rank'])
+                allele_lost_TFBS_list.append(row['allele ID'])
+                
+        for index, row in predicted_loss_with_regain_of_new_TFBS_for_same_TF_synopsis_df.iterrows():
+             if row['sample'] == sample:
+                allele_rank_other_list.append(row['allele rank'])
+                allele_list.append(row['allele ID'])
+                allele_rank_list.append(row['allele rank'])
+                sample_list.append(row['sample'])
+                read_count_list.append(row['read count'])
+                total_reads_list.append(row['total reads'])
+                total_reads_pct_list.append(row['% total reads'])
+                total_reads_1pct_list.append(row['% reads filtered for reads <1%']) 
+                total_reads_10pct_list.append(row['% reads filtered for reads <10%'])
+                allele_sequence_list.append(row['alignment query\n(allele sequence)'])
+                alignment_midline_list.append(row['alignment midline'])
+                reference_sequence_list.append(row['alignment hit\n(reference)'])
+                TF_list.append(row['TF lost'])
+                TF_exlusively_lost_list.append('')
+                TF_lost_with_regain_of_TFBS_for_same_TF_list.append('x')
+                TF_lost_with_gain_of_distinct_TF_list.append('')
+                reference_TFBS_unchanged_list.append('')
+                strand_list.append(row['TF lost strand']) 
+                TFBS_sequence_list.append(row["Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'"])
+                allele_start_coordinate_list.append(row['Lost TFBS coordinate start (in reference)'])
+                allele_stop_coordinate_list.append(row['Lost TFBS coordinate end (in reference)'])
+                p_val_list.append(row['Lost TFBS p-val (in reference)'])
+                comment_list.append(row['comment'])            
+                
+        for index, row in predicted_loss_with_gain_of_different_TFBS_synopsis_df.iterrows():
+            if row['sample'] == sample:
+                allele_rank_other_list.append(row['allele rank'])
+                allele_list.append(row['allele ID'])
+                allele_rank_list.append(row['allele rank'])
+                sample_list.append(row['sample'])
+                read_count_list.append(row['read count'])
+                total_reads_list.append(row['total reads'])
+                total_reads_pct_list.append(row['% total reads'])
+                total_reads_1pct_list.append(row['% reads filtered for reads <1%']) 
+                total_reads_10pct_list.append(row['% reads filtered for reads <10%'])
+                allele_sequence_list.append(row['alignment query\n(allele sequence)'])
+                alignment_midline_list.append(row['alignment midline'])
+                reference_sequence_list.append(row['alignment hit\n(reference)'])
+                TF_list.append(row['TF lost'])
+                TF_exlusively_lost_list.append('')
+                TF_lost_with_regain_of_TFBS_for_same_TF_list.append('')
+                TF_lost_with_gain_of_distinct_TF_list.append('x')
+                reference_TFBS_unchanged_list.append('')
+                strand_list.append(row['TF lost strand']) 
+                TFBS_sequence_list.append(row["Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'"])
+                allele_start_coordinate_list.append(row['Lost TFBS coordinate start (in reference)'])
+                allele_stop_coordinate_list.append(row['Lost TFBS coordinate end (in reference)'])
+                p_val_list.append(row['Lost TFBS p-val (in reference)'])
+                comment_list.append(row['comment'])  
+                        
+        for index, row in allele_TFBS_synopsis_df.iterrows():
+            if row['sample'] == sample:
+                if row['allele rank'] not in allele_rank_lost_TFBS_list:
+                    if row['allele rank'] not in allele_rank_other_list:
+                        allele_rank_other_list.append(row['allele rank'])
+                        allele_list.append(row['allele ID'])
+                        allele_rank_list.append(row['allele rank'])
+                        sample_list.append(row['sample'])
+                        read_count_list.append(row['reads'])
+                        total_reads_list.append(row['total reads'])
+                        total_reads_pct_list.append(row['% total reads'])
+                        total_reads_1pct_list.append(row['% reads filtered for reads <1%']) 
+                        total_reads_10pct_list.append(row['% reads filtered for reads <10%'])
+                        allele_sequence_list.append(row['alignment query\n(allele sequence)'])
+                        alignment_midline_list.append(row['alignment midline'])
+                        reference_sequence_list.append(row['alignment hit\n(reference)'])
+                        TF_list.append('n/a')
+                        TF_exlusively_lost_list.append('')
+                        TF_lost_with_regain_of_TFBS_for_same_TF_list.append('')
+                        TF_lost_with_gain_of_distinct_TF_list.append('')
+                        reference_TFBS_unchanged_list.append('x')
+                        strand_list.append('n/a') 
+                        TFBS_sequence_list.append('n/a')
+                        allele_start_coordinate_list.append('n/a')
+                        allele_stop_coordinate_list.append('n/a')
+                        p_val_list.append('n/a')
+                        comment_list.append(row['comment'])
+    
+    samples_predicted_to_have_lost_TFBS_synopsis_df_columns = {"sample":sample_list, "allele rank":allele_rank_list, "allele ID":allele_list,
+                                "read count": read_count_list, "total reads": total_reads_list,
+                                "% total reads": total_reads_pct_list, "% reads filtered for reads <1%": total_reads_1pct_list,
+                                "% reads filtered for reads <10%": total_reads_10pct_list, "alignment query\n(allele sequence)":allele_sequence_list,
+                                "alignment midline":alignment_midline_list, "alignment hit\n(reference)":reference_sequence_list,
+                                "TF lost (lost TFBS; no predicted regain of related for same TF, or gain of novel TFBS for distinct TF)":TF_list,
+                                "TFBS for TF exclusively lost": TF_exlusively_lost_list,
+                                "TFBS for TF lost with regain of different TFBS for same TF": TF_lost_with_regain_of_TFBS_for_same_TF_list,
+                                "TFBS for TF lost with gain of TFBS for different TF": TF_lost_with_gain_of_distinct_TF_list,
+                                "TFBS for TF unchanged relative to reference": reference_TFBS_unchanged_list,
+                                "TF lost strand":strand_list, 
+                                "Lost TFBS sequence (in reference at this position, lost in allele)\n*Note: this TFBS sequence is in the reference, 5'-3' on strand indicated in 'strand'":TFBS_sequence_list,
+                                "Lost TFBS coordinate start (in reference)":allele_start_coordinate_list,
+                                "Lost TFBS coordinate end (in reference)":allele_stop_coordinate_list,
+                                "Lost TFBS p-val (in reference)":p_val_list, "comment":comment_list}
+
+    samples_predicted_to_have_lost_TFBS_synopsis_df = pd.DataFrame(samples_predicted_to_have_lost_TFBS_synopsis_df_columns)
+    
+    samples_predicted_to_have_lost_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF lost (lost TFBS; no predicted regain of related for same TF, or gain of novel TFBS for distinct TF)',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True])
+    
+samples_predicted_to_have_lost_TFBS_synopsis_df.drop_duplicates(inplace=True)
+samples_predicted_to_have_lost_TFBS_synopsis_df = samples_predicted_to_have_lost_TFBS_synopsis_df.reset_index(drop=True)
+
+genotype_interpretation_dict = {}
+for sample in set(samples_predicted_to_have_lost_TFBS_synopsis_df['sample'].to_list()):
+    allele_ranks_read_pct_list = []
+    for index, row in samples_predicted_to_have_lost_TFBS_synopsis_df.sort_values(by=['sample','allele rank']).iterrows():
+        if row['sample'] == sample:
+            allele_ranks_read_pct_list.append((row['allele rank'], row['% reads filtered for reads <10%'], row['TFBS for TF exclusively lost'], row['TFBS for TF lost with regain of different TFBS for same TF'], row['TFBS for TF lost with gain of TFBS for different TF'], row['TFBS for TF unchanged relative to reference']))
+    for index, i in enumerate(sorted(set(allele_ranks_read_pct_list))):
+        if sample not in genotype_interpretation_dict:
+            if int(i[0]) == 1 and int(i[1]) > 90 and i[2] == 'x':
+                genotype_interpretation_dict[sample] = 'predicted homozygous loss in high-ranking allele (no regain or gain)'
+            elif int(i[0]) == 1 and int(i[1]) > 90 and i[3] == 'x':
+                genotype_interpretation_dict[sample] = 'predicted homozygous loss in high-ranking allele, with loss having regained a TFBS for TF'
+            elif int(i[0]) == 1 and int(i[1]) > 90 and i[4] == 'x':
+                genotype_interpretation_dict[sample] = 'predicted homozygous loss in high-ranking allele, with loss having gained a novel TFBS for a distinct TF'
+            elif int(i[0]) == 1 and int(i[1]) > 90 and i[5] == 'x':
+                genotype_interpretation_dict[sample] = 'predicted loss in inconsequential (low-ranking) allele rank(s)'
+            elif int(i[0]) == 1 and 35 < int(i[1]) < 90:
+                if i[2] == 'x':
+                    if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles (no regain or gain)'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles'
+                    else:
+                        genotype_interpretation_dict[sample] = 'predicted loss among high-ranking allele'
+                elif i[3] == 'x':
+                    if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but both of the 2 losses have regained a TFBS for TF'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having regained a TFBS for TF'
+                    else:
+                        genotype_interpretation_dict[sample] = 'predicted loss among high-ranking allele, with loss having regained a TFBS for TF'
+                elif i[4] == 'x':
+                    if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF and 1 has gained a novel TFBS for a distinct TF'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but both of the 2 losses have gained a novel TFBS for a distinct TF'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having gained a novel TFBS for a distinct TF'
+                    else:
+                        genotype_interpretation_dict[sample] = 'predicted loss among high-ranking allele, with loss having gained a novel TFBS for a distinct TF'
+                elif i[5] == 'x':
+                    if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having regained a TFBS for TF'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
+                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having gained a novel TFBS for a distinct TF'
+                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
+                         genotype_interpretation_dict[sample] = 'predicted loss in inconsequential (low-ranking) allele rank(s)'
+                    else:
+                         genotype_interpretation_dict[sample] = 'predicted loss in inconsequential (low-ranking) allele rank(s)'  
+            else:
+                genotype_interpretation_dict[sample] = 'shrug?'
+                
+genotype_inference_list = []
+for index, row in samples_predicted_to_have_lost_TFBS_synopsis_df.iterrows():
+    genotype_inference_list.append(genotype_interpretation_dict.get(row['sample']))
+    
+samples_predicted_to_have_lost_TFBS_synopsis_df['genotype inference'] = genotype_inference_list
+
+from pandas.api.types import CategoricalDtype
+cat_genotype_order = CategoricalDtype(['predicted loss among high-ranking allele', 'predicted biallelic loss among high-ranking alleles (no regain or gain)',
+ 'predicted loss among high-ranking allele, with loss having regained a TFBS for TF',
+ 'predicted loss among high-ranking allele, with loss having gained a novel TFBS for a distinct TF',
+ 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF',
+ 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF', 
+ 'predicted homozygous loss in high-ranking allele, with loss having regained a TFBS for TF',
+ 'predicted homozygous loss in high-ranking allele, with loss having gained a novel TFBS for a distinct TF',
+ 'predicted biallelic loss among high-ranking alleles, but both of the 2 losses have regained a TFBS for TF',
+ 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF and 1 has gained a novel TFBS for a distinct TF',
+ 'predicted biallelic loss among high-ranking alleles, but both of the 2 losses have gained a novel TFBS for a distinct TF',
+ 'predicted heterozygous loss among high-ranking alleles',
+ 'predicted heterozygous loss among high-ranking alleles, with single loss having regained a TFBS for TF',
+ 'predicted heterozygous loss among high-ranking alleles, with single loss having gained a novel TFBS for a distinct TF',
+ 'predicted loss in inconsequential (low-ranking) allele rank(s)'], ordered=True
+)
+samples_predicted_to_have_lost_TFBS_synopsis_df['genotype inference'] = samples_predicted_to_have_lost_TFBS_synopsis_df['genotype inference'].astype(cat_genotype_order)
+
+# Finally, prepare output that summarizes all TFBS detected for given samples
+sample_list = []
+allele_rank_list = []
+allele_list = []
+allele_sequence_list = []
+reference_sequence_list = []
+alignment_midline_list = []
+TF_list = []
+strand_list = []
+TFBS_sequence_list = []
+p_val_list = []
+lostvsgained_list = []
+allele_start_coordinate_list = []
+allele_stop_coordinate_list = []
+ref_start_coordinate_list = []
+ref_stop_coordinate_list = []
+for sample in dict_allele_TFBS_synopsis:
+    allele_count = 0
+    for allele in dict_allele_TFBS_synopsis.get(sample):
+        allele_count = allele_count+1
+        for TFBS in dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites'):
+            if len(dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites')) == 0:
+                sample_list.append(sample)
+                allele_rank_list.append(allele_count)
+                allele_list.append(allele)
+                allele_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[0].split('>')[1].split('<')[0].strip())
+                reference_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[1].split('>')[1].split('<')[0].strip())
+                alignment_midline_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[2].split('>')[1].split('<')[0].strip())   
+                TF_list.append(TFBS.split(',')[0])
+                strand_list.append(TFBS.split(',')[1])                           
+                p_val_list.append(TFBS.split(',')[3])
+                allele_start_coordinate_list.append(TFBS.split(',')[4])
+                allele_stop_coordinate_list.append(TFBS.split(',')[5])
+                TFBS_sequence_list.append(TFBS.split(',')[2])
+            else:
+                sample_list.append(sample)
+                allele_rank_list.append(allele_count)
+                allele_list.append(allele)
+                allele_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[0].split('>')[1].split('<')[0].strip())
+                reference_sequence_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[1].split('>')[1].split('<')[0].strip())
+                alignment_midline_list.append(dict_allele_TFBS_synopsis.get(sample).get(allele).get('allele_sequence')[2].split('>')[1].split('<')[0].strip())   
+                TF_list.append(TFBS.split(',')[0])
+                strand_list.append(TFBS.split(',')[1])
+                p_val_list.append(TFBS.split(',')[3])
+                allele_start_coordinate_list.append(TFBS.split(',')[4])
+                allele_stop_coordinate_list.append(TFBS.split(',')[5])
+                TFBS_sequence_list.append(TFBS.split(',')[2])
+                
+all_TFBS_synopsis_df_columns = {"sample":sample_list, "allele rank":allele_rank_list, "allele ID":allele_list, 
+                                "alignment query\n(allele sequence)":allele_sequence_list,
+                                "alignment midline":alignment_midline_list, "alignment hit\n(reference)":reference_sequence_list,
+                                "TF":TF_list,
+                                "strand":strand_list, 
+                                "TFBS sequence":TFBS_sequence_list,
+                                "TFBS coordinate start (in allele)":allele_start_coordinate_list,
+                                "TFBS coordinate end (in allele)":allele_stop_coordinate_list,
+                                "TFBS p-val":p_val_list}
+
+all_TFBS_synopsis_df = pd.DataFrame(all_TFBS_synopsis_df_columns)
+
+# Add read count data
+read_count_list = [i.split('_')[2].strip('[]').split('/')[0] for i in all_TFBS_synopsis_df['allele ID'].to_list()]
+total_reads_list = [i.split('_')[2].strip('[]').split('/')[1] for i in all_TFBS_synopsis_df['allele ID'].to_list()]
+pct_total_reads_list = [i.split('_')[4].split(':')[1] for i in all_TFBS_synopsis_df['allele ID'].to_list()]
+pct_reads_filtered_for_1pct_list = [float(i.split('_')[7].split(':')[1]) if i.split('_')[7].split(':')[1] != 'None' else 0 for i in all_TFBS_synopsis_df['allele ID'].to_list()]
+pct_reads_filtered_for_10pct_list = [float(i.split('_')[8].split(':')[1]) if i.split('_')[8].split(':')[1] != 'None' else 0 for i in all_TFBS_synopsis_df['allele ID'].to_list()]
+
+all_TFBS_synopsis_df.insert(loc=3, column='reads', value=read_count_list)
+all_TFBS_synopsis_df.insert(loc=4, column='total reads', value=total_reads_list)
+all_TFBS_synopsis_df.insert(loc=5, column='% total reads', value=pct_total_reads_list)
+all_TFBS_synopsis_df.insert(loc=6, column='% reads filtered for reads <1%', value=pct_reads_filtered_for_1pct_list)
+all_TFBS_synopsis_df.insert(loc=7, column='% reads filtered for reads <10%', value=pct_reads_filtered_for_10pct_list)
+
+# Add column with allele comment (comment if appropriate)
+all_TFBS_synopsis_df['comment'] = ['note: inferred allele length <=50 bp; read may be primer dimer; consult fasta file for this inferred allele, and/or consider pre-processing fastq file (filter reads) prior to running CollatedMotifs' if i <=50 else '' for i in [len(x) for x in all_TFBS_synopsis_df['alignment query\n(allele sequence)'].to_list()]]
+
+all_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF',"strand","TFBS coordinate start (in allele)"],ascending=[True, True, True, True, True])
+
+# Print dataframes to output file (Excel)
+collatedTFBS_csv_output = Path(str(output_path)+ '/'+processdate+'_collated_TFBS.xlsx')
+
+collatedTFBS_csv_output = Path(str(output_path)+ '/'+processdate+'_collated_TFBS.xlsx')
+
+with pd.ExcelWriter(collatedTFBS_csv_output) as writer:  
+    allele_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF',"strand","lost or gained in allele (relative to ref)?"],ascending=[True, True, True, True, False]).to_excel(writer, sheet_name='1 TFBS, predicted lost, gained', index=False)
+    interpreted_TFBS_synopsis_df_updated.sort_values(by=['sample','allele rank','TF',"strand","interpretation"],ascending=[True, True, True, True, False]).to_excel(writer, sheet_name='2 TFBS, lost-regained pairs', index=False)
+    if TF_of_interest == '':
+        all_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF',"strand","TFBS coordinate start (in allele)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='3 All TFBS in alleles', index=False)
+    # TF_of_interest length is assessed to account for Excel maximum of 31 characters in tab names
+    elif len(TF_of_interest) <= 6:
+        predicted_loss_of_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='3 '+TF_of_interest+', lost (all)', index=False)
+        predicted_exclusive_loss_of_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='4 '+TF_of_interest+', lost (-gain,-regain)', index=False)
+        predicted_loss_with_regain_of_new_TFBS_for_same_TF_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='5 '+TF_of_interest+', lost (+regain)', index=False)
+        predicted_loss_with_gain_of_different_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='6 '+TF_of_interest+', lost (+gain)', index=False)
+        samples_predicted_to_have_lost_TFBS_synopsis_df.sort_values(by=['genotype inference', 'sample','allele rank',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='7 '+TF_of_interest+', curated samples', index=False)
+        all_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF',"strand","TFBS coordinate start (in allele)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='8 All TFBS in alleles', index=False)
+    else:
+        adjusted_TF_of_interest = TF_of_interest[:7]
+        predicted_loss_of_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='3 '+adjusted_TF_of_interest+' lost (all)', index=False)
+        predicted_exclusive_loss_of_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='4 '+adjusted_TF_of_interest+' lost (-gain,-regain)', index=False)
+        predicted_loss_with_regain_of_new_TFBS_for_same_TF_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='5 '+adjusted_TF_of_interest+' lost (+regain)', index=False)
+        predicted_loss_with_gain_of_different_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF lost',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='6 '+adjusted_TF_of_interest+' lost (+gain)', index=False)
+        samples_predicted_to_have_lost_TFBS_synopsis_df.sort_values(by=['genotype inference', 'sample','allele rank',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='7 '+adjusted_TF_of_interest+' curated samples', index=False)
+        all_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF',"strand","TFBS coordinate start (in allele)"],ascending=[True, True, True, True, True]).to_excel(writer, sheet_name='8 All TFBS in alleles', index=False)
+
 # Relate allele definition (alignments in alignmentoutput_dict2) to TFBS collation for each allele of each sample (with focus on lost and gained TFBS for each allele, relative to reference)
 collatedTFBS_output = Path(str(output_path)+ '/'+processdate+'_collated_TFBS.txt')
 with open(str(collatedTFBS_output), 'a+') as f:
@@ -1415,7 +3070,7 @@ processingDuration = str(datetime.now() - startTime).split(':')[0]+' hr|'+str(da
    
 filename = Path(str(output_path)+ '/'+processdate+'_script_metrics.txt')
 with open(filename, 'a') as f:
-    print("""\n\nFile output information:
+    print("""File output information:
     Output directory: """ + str(output_directory) +
 '\n    Total file #: ' + str(len(file_set)) +
 '\n    Total file output sizes: '+path_size(str(output_directory)), file = f)
@@ -1432,11 +3087,12 @@ with open(filename, 'a') as f:
     '\n    total processing time: '+processingDuration+
     '\n    end time: '+endTimestr, file = f)
 f.close()
-
+          
 # End of script operations
-print("\nScript has completed.  Please find output files at "+str(output_directory))
+print("Script has completed.  Please find output files at "+str(output_directory))
+print("\n")
 
-sys.exit(0)    
+sys.exit(0)
 
 ############################################################################# end
     
