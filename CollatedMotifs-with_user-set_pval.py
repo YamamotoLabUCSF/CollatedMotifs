@@ -615,7 +615,7 @@ elif user_input == 'List':
     9-Location of FASTA-GET-MARKOV EXECUTABLE
     10-Location of MARKOV BACKGROUND FILE
     11-P-VALUE THRESHOLD to be used by FIMO
-    12-Identify of TRANSCRIPTION FACTOR (TF) of interest (optional)
+    12-Identity of TRANSCRIPTION FACTOR (TF) of interest (optional)
     
     """)
     input_list = []
@@ -1180,6 +1180,12 @@ for i in alignments_list3:
                     pass
         if overlapping_hsp is False:
             alleles_with_multiple_hsps_that_can_be_reconstructed_list.append(i)
+            
+# identify alleles with multiple hsp's that were not able to be reconstructed; note these later in script_metrics.txt
+alleles_with_multiple_hsps_that_cannot_be_reconstructed_list = []
+for i in multiple_alignments_hsp_list:
+    if i not in alleles_with_multiple_hsps_that_can_be_reconstructed_list:
+        alleles_with_multiple_hsps_that_cannot_be_reconstructed_list.append(i)
 
 # attempt to reconstruct long-ranging alignment for alleles with >1 BLASTN hsp that can be reasonably reconstituted
 reconstructed_alleles_with_multiple_hsps_list = []
@@ -1319,8 +1325,8 @@ for i in alignments_list3:
 for i in reconstructed_alleles_with_multiple_hsps_list:
         alignments_list4.append(i)
 
-# In script_metrics.txt, log samples and allele IDs identified as having (1) no hits in alignment database or (2) multiple hits in alignment database, as well as (3) samples and allele IDs having more than 1 high-scoring pair (hsp) that the script was unable to reconstruct toward an alignment.
 # Use print redirection to write to target file, in append mode (append to script_metrics.txt)
+
 filename = Path(str(output_path)+'/'+processdate+'_script_metrics.txt')
 with open(filename, 'a') as f:
     print("\nRecord of ranked alleles deprecated from analysis output:", file = f)
@@ -1336,11 +1342,17 @@ with open(filename, 'a') as f:
     else:
         for i in multiple_alignments_hits_list:
             print("        "+i[1].split('>')[1].split('<')[0], file = f)
-    print("\n    >1 high-scoring pair (hsp) identified by BLASTN, but hsp's could not be reconstructed into a hypothesized allele: ", file = f)
-    if len(multiple_alignments_hsp_list) == 0:
+    print("\n    >1 high-scoring pair (hsp) identified by BLASTN, and hsp's were reconstructed into a hypothesized allele: ", file = f)
+    if len(alleles_with_multiple_hsps_that_can_be_reconstructed_list) == 0:
         print("        None", file = f) 
     else:
-        for i in multiple_alignments_hsp_list:
+        for i in alleles_with_multiple_hsps_that_can_be_reconstructed_list:
+            print("        "+i[1].split('>')[1].split('<')[0], file = f)     
+    print("\n    >1 high-scoring pair (hsp) identified by BLASTN, but hsp's could not be reconstructed into a hypothesized allele: ", file = f)
+    if len(alleles_with_multiple_hsps_that_cannot_be_reconstructed_list) == 0:
+        print("        None", file = f) 
+    else:
+        for i in alleles_with_multiple_hsps_that_cannot_be_reconstructed_list:
             print("        "+i[1].split('>')[1].split('<')[0], file = f) 
     print("\n", file = f)
 f.close()
@@ -2593,7 +2605,9 @@ else:
     p_val_list = []
     comment_list = []
 
-    for sample in set(predicted_loss_of_TFBS_synopsis_df['sample'].to_list()):
+    for sample in set(predicted_loss_of_TFBS_synopsis_df['sample'].to_list()).union(
+        set(predicted_loss_with_regain_of_new_TFBS_for_same_TF_synopsis_df['sample'].to_list())).union(
+        set(predicted_loss_with_gain_of_different_TFBS_synopsis_df['sample'].to_list())):
         allele_lost_TFBS_list = []
         allele_rank_lost_TFBS_list = []
         allele_rank_other_list = []
@@ -2928,7 +2942,7 @@ with open(str(collatedTFBS_output), 'a+') as f:
     print('CollatedMotifs.py: Summary of matches to TFBS motifs detected in sample sequence(s) relative to reference\nDate: ' + (datetime.today().strftime("%m/%d/%Y")) + '\n\n', file = f)
     for i in sorted(dict_allele_TFBS_synopsis):
         print((len(i)*'=')+'\n'+i+'\n'+(len(i)*'='), file = f)
-        for allele in dict_allele_TFBS_synopsis.get(i):
+        for allele in sorted(dict_allele_TFBS_synopsis.get(i), key=lambda x: x.split('_')[3]):
             for x in range(0, len(alignmentoutput_dict2.get(i))):
                 if alignmentoutput_dict2.get(i)[x][1].split('>')[1].split('<')[0] == allele:
                     test = alignmentoutput_dict2.get(i)[x]
@@ -2968,6 +2982,8 @@ with open(str(collatedTFBS_output), 'a+') as f:
             print(' Synopsis: relative to reference sequence--# lost sites |'+sum_lost_motifs+'|, # new sites |'+sum_gained_motifs+'|', file = f)
             print('  Details: lost |'+str(total_lost_motifs_list).strip('[]').replace("'","")+'|', file = f)
             print('            new |'+str(total_gained_motifs_list).strip('[]').replace("'","")+'|', file = f)
+            if len(dict_allele_TFBS_synopsis.get(i).get(allele).get('allele_sequence')[0].split('>')[1].split('<')[0]) <= 50:
+                print(5*' '+'Note: inferred allele length <=50 bp; read may be primer dimer;\n'+11*' '+'consult fasta file for this inferred allele, and/or consider pre-processing fastq file (filter reads) prior to running CollatedMotifs', file = f)
             # prepare complete visual mapping of new motifs above allele sequence
             if int(sum_gained_motifs) > 0: 
                 print('\n'+11*' '+'NEW motifs:', file = f)
