@@ -4,12 +4,12 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation=  xmlns:fimo="http://noble.gs.washington.edu/schema/fimo"
 >
-<command-line>/Users/kirkehmsen/Meme/bin/fimo --bfile /Users/kirkehmsen/Documents/CollatedMotifsOutputGit/01112021_markov_background.txt --o /Users/kirkehmsen/Documents/CollatedMotifsOutputGit/fimo_out_ref /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/JASPAR_CORE_2016_vertebrates.meme /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/FKBP5_GOR+86.848kb_KE4.txt</command-line>
+<command-line>/Users/kirkehmsen/Meme/bin/fimo --bfile /Users/kirkehmsen/Documents/CollatedMotifsOutputGit_072021/07202021_markov_background.txt --o /Users/kirkehmsen/Documents/CollatedMotifsOutputGit_072021/fimo_out_ref --thresh 1e-4 /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/JASPAR_CORE_2016_vertebrates.meme /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/FKBP5_GOR+86.848kb_KE4.txt</command-line>
 <settings>
-<setting name="output directory">/Users/kirkehmsen/Documents/CollatedMotifsOutputGit/fimo_out_ref</setting>
+<setting name="output directory">/Users/kirkehmsen/Documents/CollatedMotifsOutputGit_072021/fimo_out_ref</setting>
 <setting name="MEME file name">/Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/JASPAR_CORE_2016_vertebrates.meme</setting>
 <setting name="sequence file name">/Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/FKBP5_GOR+86.848kb_KE4.txt</setting>
-<setting name="background file name">/Users/kirkehmsen/Documents/CollatedMotifsOutputGit/01112021_markov_background.txt</setting>
+<setting name="background file name">/Users/kirkehmsen/Documents/CollatedMotifsOutputGit_072021/07202021_markov_background.txt</setting>
 <setting name="allow clobber">false</setting>
 <setting name="compute q-values">true</setting>
 <setting name="parse genomic coord.">false</setting>
@@ -558,7 +558,7 @@
 <motif name="MA0913.1" alt="Hoxd9" width="10" best-possible-match="GCAATAAAAA"/>
 <motif name="MA0914.1" alt="ISL2" width="8" best-possible-match="GCACTTAA"/>
 <motif name="MA1099.1" alt="Hes1" width="10" best-possible-match="GGCACGCGTC"/>
-<background source="/Users/kirkehmsen/Documents/CollatedMotifsOutputGit/01112021_markov_background.txt">
+<background source="/Users/kirkehmsen/Documents/CollatedMotifsOutputGit_072021/07202021_markov_background.txt">
 <value letter="A">0.295</value>
 <value letter="C">0.205</value>
 <value letter="G">0.205</value>

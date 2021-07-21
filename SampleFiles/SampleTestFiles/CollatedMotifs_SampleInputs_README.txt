@@ -1,5 +1,5 @@
 ** Test files for CollatedMotifs.py **
-01-03-2021
+07-20-2021
 This directory contains files compatible with test runs of CollatedMotifs.py
 
 

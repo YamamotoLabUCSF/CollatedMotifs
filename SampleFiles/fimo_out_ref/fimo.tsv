@@ -33,4 +33,4 @@ MA0727.1	NR3C2	KE4	97	113	+	3.45652	9.39e-05	0.00955	ATGAACTCGATGTGCTG
 
 # FIMO (Find Individual Motif Occurrences): Version 5.0.1 compiled on Aug 10 2018 at 13:43:31
 # The format of this file is described at http://meme-suite.org/doc/fimo-output-format.html.
-# /Users/kirkehmsen/Meme/bin/fimo --bfile /Users/kirkehmsen/Documents/CollatedMotifsOutputGit/01112021_markov_background.txt --o /Users/kirkehmsen/Documents/CollatedMotifsOutputGit/fimo_out_ref /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/JASPAR_CORE_2016_vertebrates.meme /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/FKBP5_GOR+86.848kb_KE4.txt
+# /Users/kirkehmsen/Meme/bin/fimo --bfile /Users/kirkehmsen/Documents/CollatedMotifsOutputGit_072021/07202021_markov_background.txt --o /Users/kirkehmsen/Documents/CollatedMotifsOutputGit_072021/fimo_out_ref --thresh 1e-4 /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/JASPAR_CORE_2016_vertebrates.meme /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/FKBP5_GOR+86.848kb_KE4.txt

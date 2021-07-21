@@ -74,7 +74,7 @@ clusterid CDATA #IMPLIED
 >
 <program-name>fimo</program-name>
 <parameters>
-<command-line>/Users/kirkehmsen/Meme/bin/fimo --bfile /Users/kirkehmsen/Documents/CollatedMotifsOutputGit/01112021_markov_background.txt --o /Users/kirkehmsen/Documents/CollatedMotifsOutputGit/fimo_out_ref /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/JASPAR_CORE_2016_vertebrates.meme /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/FKBP5_GOR+86.848kb_KE4.txt</command-line>
+<command-line>/Users/kirkehmsen/Meme/bin/fimo --bfile /Users/kirkehmsen/Documents/CollatedMotifsOutputGit_072021/07202021_markov_background.txt --o /Users/kirkehmsen/Documents/CollatedMotifsOutputGit_072021/fimo_out_ref --thresh 1e-4 /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/JASPAR_CORE_2016_vertebrates.meme /Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/FKBP5_GOR+86.848kb_KE4.txt</command-line>
 <pattern-file>/Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/JASPAR_CORE_2016_vertebrates.meme</pattern-file>
 <sequence-file>/Users/kirkehmsen/Documents/Zenodo/ExampleTestFiles/CollatedMotifs_testfiles/FKBP5_GOR+86.848kb_KE4.txt</sequence-file>
 <site-pvalue-cutoff>0.0001</site-pvalue-cutoff>
