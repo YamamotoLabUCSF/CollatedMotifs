@@ -3043,7 +3043,7 @@ with open(str(collatedTFBS_output), 'a+') as f:
 TFBScollationDuration = str(datetime.now() - startTime_TFBScollation).split(':')[0]+' hr|'+str(datetime.now() - startTime_TFBScollation).split(':')[1]+' min|'+str(datetime.now() - startTime_TFBScollation).split(':')[2].split('.')[0]+' sec|'+str(datetime.now() - startTime_TFBScollation).split(':')[2].split('.')[1]+' microsec'
             
 # Assess files in output directory
-file_set = [file for file in os.listdir(output_directory) if Path(file).suffix in ('.txt','.fa')] 
+file_set = [file for file in os.listdir(output_directory) if Path(file).suffix in ('.txt','.fa','.xls','.xlsx')] 
 
 # Assign script end time
 endTime = datetime.now()
