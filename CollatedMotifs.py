@@ -2,7 +2,7 @@
 # Note: edit shebang line above as appropriate for your system
 # AUTH: Kirk Ehmsen
 # FILE: CollatedMotifs.py
-# DATE: 09-04-2018/8-04-2019 & 3-02-2021/6-26-2021
+# DATE: 09-04-2018/08-04-2019 & 3-02-2021/06-26-2021/07-01-2021
 # DESC: This script accepts text to standard input, and returns TFBS motifs for samples
 # from a demultiplexed NGS fastq dataset.  Provided with a reference sequence, the script returns TFBS motifs
 # collated as 'new' or 'lost' relative to the reference sequence.
@@ -844,7 +844,7 @@ with open(fasta_ref, "r") as f:
 filename = Path(str(output_path)+'/'+processdate+'_script_metrics.txt')
 with open(filename, 'a') as f:
     print("""CollatedMotifs.py: Script Metrics
-\nDate: """ + (datetime.today().strftime("%m/%d/%Y")) +
+Date: """ + (datetime.today().strftime("%m/%d/%Y")) +
 """\n\nOperating system information:
     name: """ + socket.gethostname() +
 '\n    platform: ' + platform.platform() +
@@ -861,9 +861,12 @@ with open(filename, 'a') as f:
 "\n    fimo_path: "+ str(fimo_path) +
 "\n    fimo_motifs_path: "+ str(fimo_motifs_path) +
 "\n    fasta_get_markov_path: "+ str(fasta_get_markov_path) +
-"\n    markov_background_file: "+ str(markov_background_file) +
-"\n    TF_of_interest: "+ TF_of_interest +
-"""\n\nfastq file information:
+"\n    markov_background_file: "+ str(markov_background_file), file = f)
+    if TF_of_interest == '':
+        print("    TF_of_interest: none specified", file = f)
+    else:
+        print("    TF_of_interest: "+ TF_of_interest, file = f)    
+    print("""\nfastq file information:
     Illumina sequencing run ID(s): """+ str(runIDlist).strip('[]').replace("'","") +
 "\n    Number of fastq files processed: "+ str(len(myFastqFilenames)) +
 """\n    Size distribution of fastq files processed: 
@@ -874,7 +877,12 @@ with open(filename, 'a') as f:
         print("    " + str(i).strip("()").replace("'",""), file = f)
     print("\nReference sequences provided in fasta_ref file: ", file = f)
     for i in ref_seqs:
-        print("    " + i.strip('\n'), file = f)
+        print("    " + i.strip('\n'), file = f)     
+    print("\n# of TFBS motifs examined: "+str(len(motifcountlist))+
+"\nIdentities of TFBS motifs examined: ", file = f)
+    for row in chunked_motifID:
+        itemnumber = (len(row)*'{: ^13} ').rstrip()
+        print(itemnumber.format(*row), file = f)        
 f.close()
 
 print("""
@@ -1309,19 +1317,20 @@ with open(filename, 'a') as f:
         print("        None", file = f) 
     else:
         for i in multiple_alignments_hits_list:
-            print("        "+i[1].split('>')[1].split('<')[0], file = f)
-    print("\n    >1 high-scoring pair (hsp) identified by BLASTN, and hsp's were reconstructed into a hypothesized allele: ", file = f)
-    if len(alleles_with_multiple_hsps_that_can_be_reconstructed_list) == 0:
-        print("        None", file = f) 
-    else:
-        for i in alleles_with_multiple_hsps_that_can_be_reconstructed_list:
-            print("        "+i[1].split('>')[1].split('<')[0], file = f)     
+            print("        "+i[1].split('>')[1].split('<')[0], file = f)  
     print("\n    >1 high-scoring pair (hsp) identified by BLASTN, but hsp's could not be reconstructed into a hypothesized allele: ", file = f)
     if len(alleles_with_multiple_hsps_that_cannot_be_reconstructed_list) == 0:
         print("        None", file = f) 
     else:
         for i in alleles_with_multiple_hsps_that_cannot_be_reconstructed_list:
-            print("        "+i[1].split('>')[1].split('<')[0], file = f) 
+            print("        "+i[1].split('>')[1].split('<')[0], file = f)
+    print("\nRecord of ranked alleles reconstructed from >1 high-scoring pair (hsp):", file = f)
+    print("\n    >1 high-scoring pair (hsp) identified by BLASTN, and hsp's were reconstructed into a hypothesized allele: ", file = f)
+    if len(alleles_with_multiple_hsps_that_can_be_reconstructed_list) == 0:
+        print("        None", file = f) 
+    else:
+        for i in alleles_with_multiple_hsps_that_can_be_reconstructed_list:
+            print("        "+i[1].split('>')[1].split('<')[0], file = f)   
     print("\n", file = f)
 f.close()
 
@@ -2708,96 +2717,128 @@ else:
     
     samples_predicted_to_have_lost_TFBS_synopsis_df.sort_values(by=['sample','allele rank','TF lost (lost TFBS; no predicted regain of related for same TF, or gain of novel TFBS for distinct TF)',"TF lost strand","Lost TFBS coordinate start (in reference)"],ascending=[True, True, True, True, True])
     
-samples_predicted_to_have_lost_TFBS_synopsis_df.drop_duplicates(inplace=True)
-samples_predicted_to_have_lost_TFBS_synopsis_df = samples_predicted_to_have_lost_TFBS_synopsis_df.reset_index(drop=True)
+if TF_of_interest == '':
+    pass
+else:
+    samples_predicted_to_have_lost_TFBS_synopsis_df.drop_duplicates(inplace=True)
+    samples_predicted_to_have_lost_TFBS_synopsis_df = samples_predicted_to_have_lost_TFBS_synopsis_df.reset_index(drop=True)
 
-genotype_interpretation_dict = {}
-for sample in set(samples_predicted_to_have_lost_TFBS_synopsis_df['sample'].to_list()):
-    allele_ranks_read_pct_list = []
-    for index, row in samples_predicted_to_have_lost_TFBS_synopsis_df.sort_values(by=['sample','allele rank']).iterrows():
-        if row['sample'] == sample:
-            allele_ranks_read_pct_list.append((row['allele rank'], row['% reads filtered for reads <10%'], row['TFBS for TF exclusively lost'], row['TFBS for TF lost with regain of different TFBS for same TF'], row['TFBS for TF lost with gain of TFBS for different TF'], row['TFBS for TF unchanged relative to reference']))
-    for index, i in enumerate(sorted(set(allele_ranks_read_pct_list))):
-        if sample not in genotype_interpretation_dict:
-            if int(i[0]) == 1 and int(i[1]) > 90 and i[2] == 'x':
-                genotype_interpretation_dict[sample] = 'predicted homozygous loss in high-ranking allele (no regain or gain)'
-            elif int(i[0]) == 1 and int(i[1]) > 90 and i[3] == 'x':
-                genotype_interpretation_dict[sample] = 'predicted homozygous loss in high-ranking allele, with loss having regained a TFBS for TF'
-            elif int(i[0]) == 1 and int(i[1]) > 90 and i[4] == 'x':
-                genotype_interpretation_dict[sample] = 'predicted homozygous loss in high-ranking allele, with loss having gained a novel TFBS for a distinct TF'
-            elif int(i[0]) == 1 and int(i[1]) > 90 and i[5] == 'x':
-                genotype_interpretation_dict[sample] = 'predicted loss in inconsequential (low-ranking) allele rank(s)'
-            elif int(i[0]) == 1 and 35 < int(i[1]) < 90:
-                if i[2] == 'x':
-                    if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles (no regain or gain)'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles'
-                    else:
-                        genotype_interpretation_dict[sample] = 'predicted loss among high-ranking allele'
-                elif i[3] == 'x':
-                    if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but both of the 2 losses have regained a TFBS for TF'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having regained a TFBS for TF'
-                    else:
-                        genotype_interpretation_dict[sample] = 'predicted loss among high-ranking allele, with loss having regained a TFBS for TF'
-                elif i[4] == 'x':
-                    if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF and 1 has gained a novel TFBS for a distinct TF'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but both of the 2 losses have gained a novel TFBS for a distinct TF'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having gained a novel TFBS for a distinct TF'
-                    else:
-                        genotype_interpretation_dict[sample] = 'predicted loss among high-ranking allele, with loss having gained a novel TFBS for a distinct TF'
-                elif i[5] == 'x':
-                    if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having regained a TFBS for TF'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
-                        genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having gained a novel TFBS for a distinct TF'
-                    elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
-                         genotype_interpretation_dict[sample] = 'predicted loss in inconsequential (low-ranking) allele rank(s)'
-                    else:
-                         genotype_interpretation_dict[sample] = 'predicted loss in inconsequential (low-ranking) allele rank(s)'  
-            else:
-                genotype_interpretation_dict[sample] = 'shrug?'
+if TF_of_interest == '':
+    pass
+else:
+    genotype_interpretation_dict = {}
+    for sample in set(samples_predicted_to_have_lost_TFBS_synopsis_df['sample'].to_list()):
+        allele_ranks_read_pct_list = []
+        for index, row in samples_predicted_to_have_lost_TFBS_synopsis_df.sort_values(by=['sample','allele rank']).iterrows():
+            if row['sample'] == sample:
+                allele_ranks_read_pct_list.append((row['allele rank'], row['% reads filtered for reads <10%'], row['TFBS for TF exclusively lost'], row['TFBS for TF lost with regain of different TFBS for same TF'],
+                                               row['TFBS for TF lost with gain of TFBS for different TF'], row['TFBS for TF unchanged relative to reference']))
+        for index, i in enumerate(sorted(set(allele_ranks_read_pct_list))):
+            if sample not in genotype_interpretation_dict:
+                if int(i[0]) == 1 and int(i[1]) > 90 and i[2] == 'x':
+                    genotype_interpretation_dict[sample] = 'predicted homozygous loss in high-ranking allele (no regain or gain)'
+                elif int(i[0]) == 1 and int(i[1]) > 90 and i[3] == 'x':
+                    genotype_interpretation_dict[sample] = 'predicted homozygous loss in high-ranking allele, with loss having regained a TFBS for TF'
+                elif int(i[0]) == 1 and int(i[1]) > 90 and i[4] == 'x':
+                    genotype_interpretation_dict[sample] = 'predicted homozygous loss in high-ranking allele, with loss having gained a novel TFBS for a distinct TF'
+                elif int(i[0]) == 1 and int(i[1]) > 90 and i[5] == 'x':
+                    genotype_interpretation_dict[sample] = 'predicted loss in inconsequential (low-ranking) allele rank(s)'
+ 
+                elif int(i[0]) == 1 and 35 < int(i[1]) < 90:
+                    if i[2] == 'x':
+                        if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles (no regain or gain)'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles'
+                        else:
+                            genotype_interpretation_dict[sample] = 'predicted loss among high-ranking allele'
+                    elif i[3] == 'x':
+                        if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but both of the 2 losses have regained a TFBS for TF'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having regained a TFBS for TF'
+                        else:
+                            genotype_interpretation_dict[sample] = 'predicted loss among high-ranking allele, with loss having regained a TFBS for TF'
+                    elif i[4] == 'x':
+                        if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF and 1 has gained a novel TFBS for a distinct TF'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted biallelic loss among high-ranking alleles, but both of the 2 losses have gained a novel TFBS for a distinct TF'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having gained a novel TFBS for a distinct TF'
+                        else:
+                            genotype_interpretation_dict[sample] = 'predicted loss among high-ranking allele, with loss having gained a novel TFBS for a distinct TF'
+                    elif i[5] == 'x':
+                        if int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][2] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][3] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having regained a TFBS for TF'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][4] == 'x':
+                            genotype_interpretation_dict[sample] = 'predicted heterozygous loss among high-ranking alleles, with single loss having gained a novel TFBS for a distinct TF'
+                        elif int(sorted(set(allele_ranks_read_pct_list))[index+1][0]) == 2 and 30 < int(sorted(set(allele_ranks_read_pct_list))[index+1][1]) < 90 and sorted(set(allele_ranks_read_pct_list))[index+1][5] == 'x':
+                             genotype_interpretation_dict[sample] = 'predicted loss in inconsequential (low-ranking) allele rank(s)'
+                        else:
+                             genotype_interpretation_dict[sample] = 'predicted loss in inconsequential (low-ranking) allele rank(s)'  
+                else:
+                    genotype_interpretation_dict[sample] = 'shrug?'
                 
-genotype_inference_list = []
-for index, row in samples_predicted_to_have_lost_TFBS_synopsis_df.iterrows():
-    genotype_inference_list.append(genotype_interpretation_dict.get(row['sample']))
+if TF_of_interest == '':
+    pass
+else:
+    genotype_inference_list = []
+    for index, row in samples_predicted_to_have_lost_TFBS_synopsis_df.iterrows():
+        genotype_inference_list.append(genotype_interpretation_dict.get(row['sample']))
     
-samples_predicted_to_have_lost_TFBS_synopsis_df['genotype inference'] = genotype_inference_list
+    samples_predicted_to_have_lost_TFBS_synopsis_df['genotype inference'] = genotype_inference_list
 
 from pandas.api.types import CategoricalDtype
-cat_genotype_order = CategoricalDtype(['predicted loss among high-ranking allele', 'predicted biallelic loss among high-ranking alleles (no regain or gain)',
+cat_genotype_order = CategoricalDtype(
+    ['predicted loss among high-ranking allele',
+
+'predicted biallelic loss among high-ranking alleles (no regain or gain)',
+
  'predicted loss among high-ranking allele, with loss having regained a TFBS for TF',
+
  'predicted loss among high-ranking allele, with loss having gained a novel TFBS for a distinct TF',
+
  'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF',
- 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF', 
+
+ 'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has gained a novel TFBS for a distinct TF',
+     
  'predicted homozygous loss in high-ranking allele, with loss having regained a TFBS for TF',
+     
  'predicted homozygous loss in high-ranking allele, with loss having gained a novel TFBS for a distinct TF',
+     
  'predicted biallelic loss among high-ranking alleles, but both of the 2 losses have regained a TFBS for TF',
+
  'predicted biallelic loss among high-ranking alleles, but 1 of the 2 losses has regained a TFBS for TF and 1 has gained a novel TFBS for a distinct TF',
+
  'predicted biallelic loss among high-ranking alleles, but both of the 2 losses have gained a novel TFBS for a distinct TF',
+
  'predicted heterozygous loss among high-ranking alleles',
+
  'predicted heterozygous loss among high-ranking alleles, with single loss having regained a TFBS for TF',
+
  'predicted heterozygous loss among high-ranking alleles, with single loss having gained a novel TFBS for a distinct TF',
- 'predicted loss in inconsequential (low-ranking) allele rank(s)'], ordered=True
+
+ 'predicted loss in inconsequential (low-ranking) allele rank(s)'], 
+    ordered=True
 )
-samples_predicted_to_have_lost_TFBS_synopsis_df['genotype inference'] = samples_predicted_to_have_lost_TFBS_synopsis_df['genotype inference'].astype(cat_genotype_order)
+
+if TF_of_interest == '':
+    pass
+else:
+    samples_predicted_to_have_lost_TFBS_synopsis_df['genotype inference'] = samples_predicted_to_have_lost_TFBS_synopsis_df['genotype inference'].astype(cat_genotype_order)
 
 # Finally, prepare output that summarizes all TFBS detected for given samples
 sample_list = []
