@@ -2892,9 +2892,9 @@ allele_start_coordinate_list = []
 allele_stop_coordinate_list = []
 ref_start_coordinate_list = []
 ref_stop_coordinate_list = []
-for sample in dict_allele_TFBS_synopsis:
+for sample in sorted(dict_allele_TFBS_synopsis):
     allele_count = 0
-    for allele in dict_allele_TFBS_synopsis.get(sample):
+    for allele in sorted(dict_allele_TFBS_synopsis.get(sample), key=lambda x: x.split('_')[3]):
         allele_count = allele_count+1
         for TFBS in dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites'):
             if len(dict_allele_TFBS_synopsis.get(sample).get(allele).get('all_sites')) == 0:
