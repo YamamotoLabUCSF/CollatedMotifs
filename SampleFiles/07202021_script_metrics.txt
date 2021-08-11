@@ -123,31 +123,34 @@ Record of ranked alleles deprecated from analysis output:
     Multiple hits identified by BLASTN in alignment database: 
         None
 
-    >1 high-scoring pair (hsp) identified by BLASTN, and hsp's were reconstructed into a hypothesized allele: 
-        KE4-1-C02_R1+R2_[82/144]_rank1_%totalreads:56.94_percentile:100_%top5reads:86.32_%readsfilteredfor1%:88.17_%readsfilteredfor10%:100.0
-
     >1 high-scoring pair (hsp) identified by BLASTN, but hsp's could not be reconstructed into a hypothesized allele: 
         KE4-1-C02_R1+R2_[1/144]_rank5_%totalreads:0.69_percentile:48_%top5reads:1.05_%readsfilteredfor1%:None_%readsfilteredfor10%:None
+
+Record of ranked alleles reconstructed from >1 high-scoring pair (hsp):
+
+    >1 high-scoring pair (hsp) identified by BLASTN, and hsp's were reconstructed into a hypothesized allele: 
+        KE4-1-C02_R1+R2_[82/144]_rank1_%totalreads:56.94_percentile:100_%top5reads:86.32_%readsfilteredfor1%:88.17_%readsfilteredfor10%:100.0
 
 
 File output information:
     Output directory: /Users/kirkehmsen/Documents/CollatedMotifsOutputGit_072021
-    Total file #: 5
+    Total file #: 6
     Total file output sizes: 352.0 bytes
-    07202021_blastn_alignments.txt: 40.4 KB
-    07202021_collated_TFBS.txt: 33.5 KB
-    07202021_script_metrics.txt: 11.4 KB
-    07202021_fasta.fa: 5.4 KB
-    07202021_markov_background.txt: 274.0 bytes
+    07312021_fasta.fa: 5.4 KB
+    07312021_markov_background.txt: 274.0 bytes
+    07312021_script_metrics.txt: 11.4 KB
+    07312021_collated_TFBS.txt: 33.5 KB
+    07312021_collated_TFBS.xlsx: 76.4 KB
+    07312021_blastn_alignments.txt: 40.4 KB
 
 
 Script operation times:
-    start time: 22:30:43
-    makeblastdb and fasta-get-markov processing time: 0 hr|00 min|17 sec|497406 microsec
-    fasta processing time: 0 hr|00 min|00 sec|410666 microsec
-    alignments processing time: 0 hr|00 min|00 sec|462618 microsec
-    allele definitions processing time: 0 hr|00 min|00 sec|186646 microsec
-    TFBS processing time (FIMO): 0 hr|00 min|04 sec|599773 microsec
-    TFBS collation processing time: 0 hr|00 min|04 sec|572136 microsec
-    total processing time: 0 hr|00 min|27 sec|876946 microsec
-    end time: 22:31:11
+    start time: 11:15:19
+    makeblastdb and fasta-get-markov processing time: 0 hr|00 min|19 sec|354724 microsec
+    fasta processing time: 0 hr|00 min|00 sec|345662 microsec
+    alignments processing time: 0 hr|00 min|00 sec|436344 microsec
+    allele definitions processing time: 0 hr|00 min|03 sec|283041 microsec
+    TFBS processing time (FIMO): 0 hr|00 min|04 sec|570023 microsec
+    TFBS collation processing time: 0 hr|01 min|44 sec|994413 microsec
+    total processing time: 0 hr|02 min|20 sec|193129 microsec
+    end time: 11:17:39
